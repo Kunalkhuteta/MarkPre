@@ -1,0 +1,6 @@
+{
+  "watch": ["src"],
+  "ext": "ts",
+  "ignore": ["dist"],
+  "exec": "tsup src/index.ts --format esm --watch --onSuccess \"node dist/index.js\""
+}

@@ -1,0 +1,16 @@
+import { Router } from "express";
+import { createPresentation, getPresentationById,updatePresentation, deletePresentation, getPresentations, exportPresentation  } from "../controllers/presentation.controller";
+import { validate } from "../middlewares/validation.middleware";
+import { authMiddleware } from "../middlewares/auth.middleware";
+import { createPresentationSchema } from "../schemas/presentation.schema";
+
+const router = Router();
+
+router.route("/create-new-presentation").post(authMiddleware, validate(createPresentationSchema), createPresentation);
+router.route("/get-all-presentations-for-user").get(authMiddleware, getPresentations);
+router.route("/get-presentation/:id").get(authMiddleware, getPresentationById);
+router.route("/delete-presentation/:id").delete(authMiddleware, deletePresentation);
+router.route("/update-presentation/:id").put(authMiddleware, updatePresentation);
+router.route("/export/:id").get(exportPresentation)
+
+export default router;
