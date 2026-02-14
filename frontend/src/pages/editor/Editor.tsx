@@ -43,8 +43,7 @@ function Editor() {
   const [lastSaved, setLastSaved] = useState<Date | null>(null);
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   const [showPreview, setShowPreview] = useState(true);
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const [isFullscreen, setIsFullscreen] = useState(false);
+  
   
   // AI States
   const [showAIDialog, setShowAIDialog] = useState(false);
@@ -293,10 +292,8 @@ function Editor() {
   const toggleFullscreen = () => {
     if (!document.fullscreenElement) {
       document.documentElement.requestFullscreen();
-      setIsFullscreen(true);
     } else {
       document.exitFullscreen();
-      setIsFullscreen(false);
     }
   };
 

@@ -19,7 +19,7 @@ interface Theme {
 const SlidePreview = ({ markdown }: SlidePreviewProps) => {
   const { id } = useParams();
   const [theme, setTheme] = useState<Theme | null>(null);
-  const [selectedThemeId, setSelectedThemeId] = useState<string | null>(null);
+  // const [selectedThemeId, setSelectedThemeId] = useState<string | null>(null);
 
   const slides = useMemo(() => {
     return markdown.split("---").filter(slide => slide.trim());
@@ -39,13 +39,13 @@ const SlidePreview = ({ markdown }: SlidePreviewProps) => {
         if (presentation.theme) {
           if (typeof presentation.theme === 'string') {
             // Theme is just an ID, fetch it
-            setSelectedThemeId(presentation.theme);
+            // setSelectedThemeId(presentation.theme);
             const themeRes = await api.get(`/themes/get-theme/${presentation.theme}`);
             setTheme(themeRes.data.data);
           } else {
             // Theme is populated
             setTheme(presentation.theme);
-            setSelectedThemeId(presentation.theme._id);
+            // setSelectedThemeId(presentation.theme._id);
           }
         }
       } catch (error) {
