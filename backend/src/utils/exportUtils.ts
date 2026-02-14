@@ -3,59 +3,64 @@ import fs from "fs";
 import path from "path";
 import puppeteer from "puppeteer";
 import hljs from "highlight.js";
-import DOMPurify from "dompurify";
-import { JSDOM } from "jsdom";
 
-const window = new JSDOM("").window as any;
-const purify = DOMPurify(window);
-marked.use({
-    renderer: {
-      code(code, infoString) {
-        const lang = infoString?.trim();
-        let highlighted;
-  
-        if (lang && hljs.getLanguage(lang)) {
-          highlighted = hljs.highlight(code, { language: lang }).value;
-        } else {
-          highlighted = hljs.highlightAuto(code).value;
-        }
-  
-        return `<pre><code class="hljs language-${lang || ""}">${highlighted}</code></pre>`;
-      },
-    },
-  });
-  
-  
+// Configure marked with highlight.js
+marked.setOptions({
+  highlight: function(code, lang) {
+    if (lang && hljs.getLanguage(lang)) {
+      try {
+        return hljs.highlight(code, { language: lang }).value;
+      } catch (err) {
+        console.error("Highlight error:", err);
+      }
+    }
+    return hljs.highlightAuto(code).value;
+  },
+  breaks: true,
+  gfm: true,
+});
 
 /**
- * Generate HTML template with theme styling
+ * Generate HTML with proper theme support
  */
 export async function exportToHTML(presentation: any): Promise<string> {
-  const slides = presentation.content.split("---").filter((slide: string) => slide.trim());
-  
+  console.log("=== EXPORT TO HTML ===");
+  console.log("Presentation:", presentation.title);
+  console.log("Theme:", presentation.theme);
+
+  const slides = presentation.content
+    .split("---")
+    .map((s: string) => s.trim())
+    .filter((s: string) => s.length > 0);
+
+  console.log("Slides count:", slides.length);
+
+  // Get theme with proper defaults
   const theme = presentation.theme || {
     name: "Default",
     primaryColor: "#3b82f6",
     backgroundColor: "#ffffff",
-    textColor: "#000000",
-    fontFamily: "Inter, sans-serif",
+    textColor: "#1e293b",
+    fontFamily: "system-ui, -apple-system, sans-serif",
   };
 
+  console.log("Using theme:", theme.name || "Default");
+
+  // Generate slide HTML
   const slideHTML = slides
     .map((slideContent: string, index: number) => {
-        const rawHtml = marked.parse(slideContent.trim()) as string;
-        const htmlContent = purify.sanitize(rawHtml);
-        
+      const html = marked.parse(slideContent) as string;
+      
       return `
         <div class="slide" data-slide="${index + 1}">
           <div class="slide-content">
-            ${htmlContent}
+            ${html}
           </div>
           <div class="slide-number">${index + 1} / ${slides.length}</div>
         </div>
       `;
     })
-    .join("");
+    .join("\n");
 
   return `
 <!DOCTYPE html>
@@ -73,9 +78,8 @@ export async function exportToHTML(presentation: any): Promise<string> {
     }
 
     body {
-      font-family: ${theme.fontFamily};
-      background-color: #1a1a1a;
-      color: ${theme.textColor};
+      font-family: ${theme.fontFamily || 'system-ui, sans-serif'};
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
       overflow: hidden;
     }
 
@@ -85,190 +89,154 @@ export async function exportToHTML(presentation: any): Promise<string> {
       display: flex;
       align-items: center;
       justify-content: center;
-      padding: 2rem;
+      padding: 40px;
     }
 
     .slide {
       display: none;
-      width: 100%;
-      max-width: 1200px;
-      height: 100%;
-      max-height: 675px; /* 16:9 aspect ratio */
-      background: ${theme.backgroundColor};
-      border-radius: 12px;
-      padding: 4rem;
-      box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+      width: 1600px;
+      height: 900px;
+      background: ${theme.backgroundColor || '#ffffff'};
+      border-radius: 20px;
+      padding: 80px 100px;
+      box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
       position: relative;
-      overflow-y: auto;
+      overflow: auto;
     }
 
     .slide.active {
-      display: flex;
-      flex-direction: column;
-      animation: slideIn 0.3s ease;
-    }
-
-    @keyframes slideIn {
-      from {
-        opacity: 0;
-        transform: translateX(20px);
-      }
-      to {
-        opacity: 1;
-        transform: translateX(0);
-      }
+      display: block;
     }
 
     .slide-content {
-      flex: 1;
+      width: 100%;
+      height: 100%;
       overflow-y: auto;
     }
 
     .slide-content h1 {
-      font-size: 3.5rem;
+      font-size: 4rem;
       font-weight: 700;
       margin-bottom: 2rem;
-      color: ${theme.primaryColor};
+      color: ${theme.primaryColor || '#3b82f6'};
       line-height: 1.2;
     }
 
     .slide-content h2 {
-      font-size: 2.5rem;
+      font-size: 3rem;
       font-weight: 600;
       margin-bottom: 1.5rem;
-      color: ${theme.primaryColor};
+      color: ${theme.primaryColor || '#3b82f6'};
       line-height: 1.3;
     }
 
     .slide-content h3 {
-      font-size: 2rem;
+      font-size: 2.5rem;
       font-weight: 500;
       margin-bottom: 1rem;
-      color: ${theme.textColor};
-      opacity: 0.9;
+      color: ${theme.textColor || '#1e293b'};
     }
 
     .slide-content p {
-      font-size: 1.5rem;
+      font-size: 1.8rem;
       line-height: 1.8;
       margin-bottom: 1.5rem;
-      color: ${theme.textColor};
+      color: ${theme.textColor || '#1e293b'};
     }
 
     .slide-content ul, .slide-content ol {
-      margin-left: 2rem;
-      margin-bottom: 1.5rem;
+      margin-left: 3rem;
+      margin-bottom: 2rem;
     }
 
     .slide-content li {
-      font-size: 1.5rem;
+      font-size: 1.8rem;
       line-height: 1.8;
-      margin-bottom: 0.75rem;
-      color: ${theme.textColor};
+      margin-bottom: 1rem;
+      color: ${theme.textColor || '#1e293b'};
     }
 
     .slide-content pre {
       background: #1e293b;
       border-radius: 8px;
-      padding: 1.5rem;
-      margin-bottom: 1.5rem;
+      padding: 2rem;
+      margin-bottom: 2rem;
       overflow-x: auto;
-      border-left: 4px solid ${theme.primaryColor};
     }
 
     .slide-content code {
-      font-family: 'Fira Code', 'Courier New', monospace;
-      font-size: 1.1rem;
-    }
-
-    .slide-content :not(pre) > code {
-      background: rgba(0, 0, 0, 0.1);
-      padding: 0.2rem 0.4rem;
-      border-radius: 4px;
-      font-size: 1.2rem;
-      color: ${theme.primaryColor};
-    }
-
-    .slide-content blockquote {
-      border-left: 4px solid ${theme.primaryColor};
-      padding-left: 1.5rem;
-      margin: 1.5rem 0;
-      font-style: italic;
-      opacity: 0.9;
-    }
-
-    .slide-content img {
-      max-width: 100%;
-      height: auto;
-      border-radius: 8px;
-      margin: 1.5rem 0;
-    }
-
-    .slide-content a {
-      color: ${theme.primaryColor};
-      text-decoration: none;
-      border-bottom: 2px solid ${theme.primaryColor};
-      transition: opacity 0.2s;
-    }
-
-    .slide-content a:hover {
-      opacity: 0.7;
+      font-family: 'Courier New', monospace;
+      font-size: 1.4rem;
     }
 
     .slide-number {
       position: absolute;
-      bottom: 2rem;
-      right: 2rem;
-      font-size: 1rem;
+      bottom: 40px;
+      right: 60px;
+      font-size: 1.2rem;
       opacity: 0.5;
-      color: ${theme.textColor};
+      color: ${theme.textColor || '#1e293b'};
     }
 
     .controls {
       position: fixed;
-      bottom: 2rem;
+      bottom: 40px;
       left: 50%;
       transform: translateX(-50%);
       display: flex;
       gap: 1rem;
       z-index: 100;
+      background: rgba(0, 0, 0, 0.7);
+      padding: 1rem;
+      border-radius: 12px;
     }
 
     .controls button {
-      background: ${theme.primaryColor};
+      background: ${theme.primaryColor || '#3b82f6'};
       color: white;
       border: none;
-      padding: 0.75rem 1.5rem;
+      padding: 12px 24px;
       border-radius: 8px;
       font-size: 1rem;
       cursor: pointer;
-      transition: transform 0.2s, opacity 0.2s;
-      font-family: ${theme.fontFamily};
-    }
-
-    .controls button:hover:not(:disabled) {
-      transform: translateY(-2px);
-      opacity: 0.9;
+      font-weight: 600;
     }
 
     .controls button:disabled {
       opacity: 0.3;
-      cursor: not-allowed;
     }
 
     @media print {
+      @page {
+        size: 1920px 1080px;
+        margin: 0;
+      }
+
+      body {
+        background: white;
+      }
+
+      .presentation-container {
+        padding: 0;
+      }
+
       .slide {
+        display: block !important;
         page-break-after: always;
-        display: flex !important;
-        max-height: none;
-        height: auto;
+        page-break-inside: avoid;
+        width: 1920px;
+        height: 1080px;
+        border-radius: 0;
+        margin: 0;
         box-shadow: none;
       }
-      .controls {
-        display: none;
+
+      .slide:last-child {
+        page-break-after: auto;
       }
-      .slide-number {
-        display: none;
+
+      .controls, .slide-number {
+        display: none !important;
       }
     }
   </style>
@@ -281,44 +249,36 @@ export async function exportToHTML(presentation: any): Promise<string> {
   <div class="controls">
     <button id="prevBtn">← Previous</button>
     <button id="nextBtn">Next →</button>
-    <button id="fullscreenBtn">⛶ Fullscreen</button>
+    <button id="fullscreenBtn">Fullscreen</button>
   </div>
 
   <script>
     let currentSlide = 0;
     const slides = document.querySelectorAll('.slide');
-    const prevBtn = document.getElementById('prevBtn');
-    const nextBtn = document.getElementById('nextBtn');
-    const fullscreenBtn = document.getElementById('fullscreenBtn');
 
     function showSlide(n) {
-      slides.forEach(slide => slide.classList.remove('active'));
+      slides.forEach(s => s.classList.remove('active'));
       currentSlide = Math.max(0, Math.min(n, slides.length - 1));
       slides[currentSlide].classList.add('active');
       
-      prevBtn.disabled = currentSlide === 0;
-      nextBtn.disabled = currentSlide === slides.length - 1;
+      document.getElementById('prevBtn').disabled = currentSlide === 0;
+      document.getElementById('nextBtn').disabled = currentSlide === slides.length - 1;
     }
 
-    prevBtn.addEventListener('click', () => showSlide(currentSlide - 1));
-    nextBtn.addEventListener('click', () => showSlide(currentSlide + 1));
-    
-    fullscreenBtn.addEventListener('click', () => {
-      if (!document.fullscreenElement) {
-        document.documentElement.requestFullscreen();
-      } else {
-        document.exitFullscreen();
+    document.getElementById('prevBtn').addEventListener('click', () => showSlide(currentSlide - 1));
+    document.getElementById('nextBtn').addEventListener('click', () => showSlide(currentSlide + 1));
+    document.getElementById('fullscreenBtn').addEventListener('click', () => {
+      document.documentElement.requestFullscreen();
+    });
+
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'ArrowLeft') showSlide(currentSlide - 1);
+      if (e.key === 'ArrowRight' || e.key === ' ') {
+        e.preventDefault();
+        showSlide(currentSlide + 1);
       }
     });
 
-    // Keyboard navigation
-    document.addEventListener('keydown', (e) => {
-      if (e.key === 'ArrowLeft') showSlide(currentSlide - 1);
-      if (e.key === 'ArrowRight') showSlide(currentSlide + 1);
-      if (e.key === 'f') fullscreenBtn.click();
-    });
-
-    // Show first slide
     showSlide(0);
   </script>
 </body>
@@ -327,53 +287,130 @@ export async function exportToHTML(presentation: any): Promise<string> {
 }
 
 /**
- * Export presentation to PDF with theme styling
+ * Export to PDF with proper theme support - COMPLETELY REWRITTEN
  */
 export async function exportToPDF(presentation: any): Promise<string> {
+  console.log("=== EXPORT TO PDF START ===");
+  console.log("Presentation ID:", presentation._id);
+  console.log("Title:", presentation.title);
+  console.log("Theme:", presentation.theme);
+
+  // Generate HTML first
   const html = await exportToHTML(presentation);
   
-  // Create temp directory if it doesn't exist
+  // Create temp directory
   const tempDir = path.join(process.cwd(), "temp");
   if (!fs.existsSync(tempDir)) {
     fs.mkdirSync(tempDir, { recursive: true });
+    console.log("Created temp directory:", tempDir);
   }
 
-  const tempHtmlPath = path.join(tempDir, `${presentation._id}_temp.html`);
-  const pdfPath = path.join(tempDir, `${presentation._id}.pdf`);
+  const timestamp = Date.now();
+  const tempHtmlPath = path.join(tempDir, `${presentation._id}_${timestamp}.html`);
+  const pdfPath = path.join(tempDir, `${presentation._id}_${timestamp}.pdf`);
 
   // Write HTML to temp file
-  fs.writeFileSync(tempHtmlPath, html);
+  fs.writeFileSync(tempHtmlPath, html, 'utf8');
+  console.log("HTML written to:", tempHtmlPath);
+  console.log("HTML size:", fs.statSync(tempHtmlPath).size, "bytes");
 
-  // Launch browser and generate PDF
-  const browser = await puppeteer.launch({
-    headless: true,
-    args: ['--no-sandbox', '--disable-setuid-sandbox'],
-  });
-
+  let browser;
   try {
-    const page = await browser.newPage();
-    await page.goto(`file://${tempHtmlPath}`, { waitUntil: "networkidle0" });
+    console.log("Launching Puppeteer...");
+    
+    browser = await puppeteer.launch({
+      headless: true,
+      args: [
+        '--no-sandbox',
+        '--disable-setuid-sandbox',
+        '--disable-dev-shm-usage',
+        '--disable-web-security',
+      ],
+    });
 
-    // Generate PDF with proper slide dimensions
+    console.log("Browser launched");
+
+    const page = await browser.newPage();
+    console.log("New page created");
+
+    await page.setViewport({
+      width: 1920,
+      height: 1080,
+    });
+
+    const fileUrl = `file://${tempHtmlPath}`;
+    console.log("Loading URL:", fileUrl);
+
+    await page.goto(fileUrl, {
+      waitUntil: "networkidle0",
+      timeout: 30000,
+    });
+
+    console.log("Page loaded successfully");
+
+    // Wait for content to render
+    await page.waitForSelector('.slide', { timeout: 5000 });
+    console.log("Slides found on page");
+
+    // Small delay for fonts
+    await page.waitForTimeout(2000);
+
+    console.log("Generating PDF...");
+
     await page.pdf({
-        path: pdfPath,
-        width: "1920px",
-        height: "1080px",
-        printBackground: true,
-        margin: {
-          top: "0",
-          right: "0",
-          bottom: "0",
-          left: "0",
-        },
-      });
-      
+      path: pdfPath,
+      width: '1920px',
+      height: '1080px',
+      printBackground: true,
+      preferCSSPageSize: true,
+      margin: {
+        top: '0',
+        right: '0',
+        bottom: '0',
+        left: '0',
+      },
+    });
+
+    console.log("PDF generated at:", pdfPath);
+
+    // Verify PDF exists and has content
+    if (!fs.existsSync(pdfPath)) {
+      throw new Error("PDF file was not created");
+    }
+
+    const pdfSize = fs.statSync(pdfPath).size;
+    console.log("PDF size:", pdfSize, "bytes");
+
+    if (pdfSize < 1000) {
+      throw new Error("PDF file is too small, probably empty");
+    }
 
     // Clean up temp HTML
-    fs.unlinkSync(tempHtmlPath);
+    try {
+      fs.unlinkSync(tempHtmlPath);
+      console.log("Temp HTML cleaned up");
+    } catch (err) {
+      console.error("Failed to clean HTML:", err);
+    }
 
+    console.log("=== EXPORT TO PDF SUCCESS ===");
     return pdfPath;
+
+  } catch (error: any) {
+    console.error("=== EXPORT TO PDF ERROR ===");
+    console.error("Error:", error);
+    console.error("Stack:", error.stack);
+    
+    // Clean up on error
+    if (fs.existsSync(tempHtmlPath)) {
+      fs.unlinkSync(tempHtmlPath);
+    }
+    
+    throw new Error(`PDF generation failed: ${error.message}`);
   } finally {
-    await browser.close();
+    if (browser) {
+      await browser.close();
+      console.log("Browser closed");
+    }
   }
 }

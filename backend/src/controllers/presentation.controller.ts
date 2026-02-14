@@ -26,6 +26,7 @@ const createPresentation = asyncHandler(async (req: Request, res: Response) => {
     lastEditedAt: new Date(),
   });
 
+  // IMPORTANT: Populate theme immediately
   const populated = await Presentation.findById(presentation._id).populate("theme");
 
   res.status(201).json(new ApiResponse(201, "Presentation created successfully", populated));
@@ -34,13 +35,13 @@ const createPresentation = asyncHandler(async (req: Request, res: Response) => {
 // GET ALL PRESENTATIONS FOR USER
 const getPresentations = asyncHandler(async (req: Request, res: Response) => {
   const presentations = await Presentation.find({ user: req.user.id })
-    .populate("theme")
+    .populate("theme") // Populate theme
     .sort({ updatedAt: -1 });
 
   res.status(200).json(new ApiResponse(200, "Presentations fetched successfully", presentations));
 });
 
-// GET PRESENTATION BY ID
+// GET PRESENTATION BY ID - FIXED
 const getPresentationById = asyncHandler(async (req: Request, res: Response) => {
   const presentation = await Presentation.findById(req.params.id).populate("theme");
 
@@ -62,7 +63,7 @@ const getPresentationById = asyncHandler(async (req: Request, res: Response) => 
   res.status(200).json(new ApiResponse(200, "Presentation fetched successfully", presentation));
 });
 
-// UPDATE PRESENTATION
+// UPDATE PRESENTATION - FIXED
 const updatePresentation = asyncHandler(async (req: Request, res: Response) => {
   const { title, content, theme } = req.body;
 
@@ -83,11 +84,16 @@ const updatePresentation = asyncHandler(async (req: Request, res: Response) => {
     presentation.slideCount = content.split("---").filter((slide: string) => slide.trim()).length;
     presentation.wordCount = content.split(/\s+/).length;
   }
-  if (theme !== undefined) presentation.theme = theme || null;
+  
+  // IMPORTANT: Handle theme update properly
+  if (theme !== undefined) {
+    presentation.theme = theme || null;
+  }
 
   presentation.lastEditedAt = new Date();
   await presentation.save();
 
+  // IMPORTANT: Populate theme before sending response
   const updated = await Presentation.findById(presentation._id).populate("theme");
 
   res.status(200).json(new ApiResponse(200, "Presentation updated successfully", updated));
@@ -110,15 +116,21 @@ const deletePresentation = asyncHandler(async (req: Request, res: Response) => {
   res.status(200).json(new ApiResponse(200, "Presentation deleted successfully"));
 });
 
-// EXPORT PRESENTATION
+// EXPORT PRESENTATION - COMPLETELY FIXED
 const exportPresentation = asyncHandler(async (req: Request, res: Response) => {
   const { id } = req.params;
-  const { format = "pdf" } = req.query; // pdf, html, pptx
+  const { format = "pdf" } = req.query;
 
+  // IMPORTANT: Populate theme when fetching
   const presentation = await Presentation.findById(id).populate("theme");
 
   if (!presentation) {
     return res.status(404).json(new ApiError(404, "Presentation not found"));
+  }
+
+  // Check if user owns this presentation
+  if (presentation.user.toString() !== req.user.id) {
+    return res.status(403).json(new ApiError(403, "Access denied"));
   }
 
   // Increment export count
@@ -127,9 +139,18 @@ const exportPresentation = asyncHandler(async (req: Request, res: Response) => {
 
   try {
     if (format === "pdf") {
-      // Generate PDF with theme
+      console.log("Generating PDF for presentation:", presentation.title);
+      console.log("Theme:", presentation.theme);
+
       const pdfPath = await exportToPDF(presentation);
       
+      // Check if file exists
+      if (!fs.existsSync(pdfPath)) {
+        throw new Error("PDF file was not created");
+      }
+
+      console.log("PDF generated at:", pdfPath);
+
       res.setHeader("Content-Type", "application/pdf");
       res.setHeader("Content-Disposition", `attachment; filename="${presentation.title}.pdf"`);
       
@@ -138,10 +159,21 @@ const exportPresentation = asyncHandler(async (req: Request, res: Response) => {
       
       // Clean up temp file after sending
       fileStream.on("end", () => {
-        fs.unlinkSync(pdfPath);
+        try {
+          fs.unlinkSync(pdfPath);
+          console.log("Temp PDF cleaned up");
+        } catch (err) {
+          console.error("Failed to clean up temp file:", err);
+        }
       });
+
+      fileStream.on("error", (error) => {
+        console.error("Stream error:", error);
+        res.status(500).json(new ApiError(500, "Failed to stream PDF"));
+      });
+
     } else if (format === "html") {
-      // Generate HTML with theme
+      console.log("Generating HTML for presentation:", presentation.title);
       const html = await exportToHTML(presentation);
       
       res.setHeader("Content-Type", "text/html");

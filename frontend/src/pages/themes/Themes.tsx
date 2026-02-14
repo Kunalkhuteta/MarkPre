@@ -17,6 +17,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
 import { api } from "@/lib/apiClient";
 import { toast } from "sonner";
 
@@ -138,16 +139,16 @@ const Themes: React.FC = () => {
   if (loading) {
     return (
       <div className="flex justify-center items-center h-64">
-        <Loader2 className="animate-spin w-6 h-6 text-gray-500" />
+        <Loader2 className="animate-spin w-6 h-6 text-primary" />
       </div>
     );
   }
 
   return (
-    <div className="p-6">
+    <div className="min-h-screen bg-background p-6">
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
-        <h1 className="text-2xl font-semibold">My Themes</h1>
+        <h1 className="text-2xl font-semibold text-foreground">My Themes</h1>
 
         <Dialog open={openDialog} onOpenChange={setOpenDialog}>
           <DialogTrigger asChild>
@@ -162,13 +163,7 @@ const Themes: React.FC = () => {
             </Button>
           </DialogTrigger>
 
-          <DialogContent
-            className="max-w-2xl p-6 rounded-xl"
-            style={{
-              width: "90vw",
-              maxWidth: "600px",
-            }}
-          >
+          <DialogContent className="max-w-2xl">
             <DialogHeader>
               <DialogTitle className="text-xl font-semibold">
                 {editMode ? "Edit Theme" : "Create New Theme"}
@@ -176,39 +171,45 @@ const Themes: React.FC = () => {
             </DialogHeader>
 
             <div className="space-y-4 mt-4">
-              <Input
-                placeholder="Theme Name"
-                value={formData.name}
-                onChange={(e) =>
-                  setFormData({ ...formData, name: e.target.value })
-                }
-              />
-              <Textarea
-                placeholder="Theme Description"
-                value={formData.description}
-                onChange={(e) =>
-                  setFormData({ ...formData, description: e.target.value })
-                }
-              />
+              <div>
+                <Label>Theme Name</Label>
+                <Input
+                  placeholder="Theme Name"
+                  value={formData.name}
+                  onChange={(e) =>
+                    setFormData({ ...formData, name: e.target.value })
+                  }
+                />
+              </div>
+
+              <div>
+                <Label>Description</Label>
+                <Textarea
+                  placeholder="Theme Description"
+                  value={formData.description}
+                  onChange={(e) =>
+                    setFormData({ ...formData, description: e.target.value })
+                  }
+                />
+              </div>
 
               <div className="grid grid-cols-3 gap-4">
                 <div>
-                  <label className="text-sm text-gray-600">Primary Color</label>
+                  <Label className="text-sm">Primary Color</Label>
                   <Input
                     type="color"
-                    value={formData.primaryColor}
+                    value={formData.textColor}
                     onChange={(e) =>
                       setFormData({
                         ...formData,
                         primaryColor: e.target.value,
                       })
                     }
+                    className="h-12 cursor-pointer"
                   />
                 </div>
                 <div>
-                  <label className="text-sm text-gray-600">
-                    Background Color
-                  </label>
+                  <Label className="text-sm">Background Color</Label>
                   <Input
                     type="color"
                     value={formData.backgroundColor}
@@ -218,27 +219,32 @@ const Themes: React.FC = () => {
                         backgroundColor: e.target.value,
                       })
                     }
+                    className="h-12 cursor-pointer"
                   />
                 </div>
                 <div>
-                  <label className="text-sm text-gray-600">Text Color</label>
+                  <Label className="text-sm">Text Color</Label>
                   <Input
                     type="color"
-                    value={formData.textColor}
+                    value={formData.primaryColor}
                     onChange={(e) =>
                       setFormData({ ...formData, textColor: e.target.value })
                     }
+                    className="h-12 cursor-pointer"
                   />
                 </div>
               </div>
 
-              <Input
-                placeholder="Font Family (e.g. Inter, sans-serif)"
-                value={formData.fontFamily}
-                onChange={(e) =>
-                  setFormData({ ...formData, fontFamily: e.target.value })
-                }
-              />
+              <div>
+                <Label>Font Family</Label>
+                <Input
+                  placeholder="Font Family (e.g. Inter, sans-serif)"
+                  value={formData.fontFamily}
+                  onChange={(e) =>
+                    setFormData({ ...formData, fontFamily: e.target.value })
+                  }
+                />
+              </div>
 
               <div className="flex justify-end pt-4">
                 <Button
@@ -265,7 +271,15 @@ const Themes: React.FC = () => {
 
       {/* Themes Grid */}
       {themes.length === 0 ? (
-        <p className="text-center text-gray-500 mt-10">You haven't created any themes yet.</p>
+        <Card>
+          <CardContent className="py-12 text-center">
+            <p className="text-muted-foreground">You haven't created any themes yet.</p>
+            <Button onClick={() => setOpenDialog(true)} className="mt-4">
+              <Plus className="w-4 h-4 mr-2" />
+              Create Your First Theme
+            </Button>
+          </CardContent>
+        </Card>
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
           {themes.map((theme) => (
@@ -279,21 +293,24 @@ const Themes: React.FC = () => {
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <p className="text-sm text-gray-500 mb-4">
+                <p className="text-sm text-muted-foreground mb-4">
                   {theme.description}
                 </p>
                 <div className="flex gap-2">
                   <div
-                    className="w-8 h-8 rounded border"
-                    style={{ backgroundColor: theme.primaryColor }}
-                  />
-                  <div
-                    className="w-8 h-8 rounded border"
-                    style={{ backgroundColor: theme.backgroundColor }}
-                  />
-                  <div
-                    className="w-8 h-8 rounded border"
+                    className="w-8 h-8 rounded border-2 border-border"
                     style={{ backgroundColor: theme.textColor }}
+                    title="Primary Color"
+                  />
+                  <div
+                    className="w-8 h-8 rounded border-2 border-border"
+                    style={{ backgroundColor: theme.backgroundColor }}
+                    title="Background Color"
+                  />
+                  <div
+                    className="w-8 h-8 rounded border-2 border-border"
+                    style={{ backgroundColor: theme.primaryColor }}
+                    title="Text Color"
                   />
                 </div>
               </CardContent>
