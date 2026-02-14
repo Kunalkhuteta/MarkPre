@@ -11,7 +11,6 @@ import SlidePreview from "@/components/SlidePreview";
 import { Save, Download, ArrowLeft, Maximize2, Eye, EyeOff, Sparkles, Presentation, Wand2, FileText, Moon, Sun } from "lucide-react";
 import {
   AlertDialog,
-  AlertDialogAction,
   AlertDialogCancel,
   AlertDialogContent,
   AlertDialogDescription,
@@ -44,6 +43,7 @@ function Editor() {
   const [lastSaved, setLastSaved] = useState<Date | null>(null);
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   const [showPreview, setShowPreview] = useState(true);
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [isFullscreen, setIsFullscreen] = useState(false);
   
   // AI States
