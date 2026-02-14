@@ -16,10 +16,13 @@ from rich.table import Table
 from rich.progress import Progress, SpinnerColumn, TextColumn
 from rich.panel import Panel
 from rich import print as rprint
+from dotenv import load_dotenv
+
+load_dotenv()
 
 # Configuration
 CONFIG_PATH = Path.home() / ".makebreak_config.json"
-API_BASE_URL = os.getenv("MAKEBREAK_API_URL", "http://localhost:8000/api")
+API_BASE_URL = os.getenv("NEXT_PUBLIC_API_BASE_URL")
 
 # Rich console for colored output
 console = Console()

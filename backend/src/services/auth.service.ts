@@ -53,7 +53,8 @@ class AuthService{
         await user.save({ validateBeforeSave: false });
         
         // const resetURL = `${req.protocol}://${req.get('host')}/auth/reset-password/${resetToken}`;
-        const resetURL = `http://${process.env.DOMAIN_NAME || 'localhost'}:5173/reset-password/${resetToken}`;;
+        // const resetURL = `http://${process.env.DOMAIN_NAME || 'localhost'}:5173/reset-password/${resetToken}`;;
+        const resetURL = `http://${process.env.DOMAIN_NAME}/reset-password/${resetToken}`;;
 
         try {
             await sendMail(user.email, "Reset Your Password", "forgot-password-email", {
