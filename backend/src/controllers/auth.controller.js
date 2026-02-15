@@ -8,37 +8,52 @@ import sendMail from "../config/mailer";
 import { generateSixDigitsOTP } from "../config/OTPGenerator";
 import bcrypt from "bcryptjs";
 // ----------------- REGISTER USER -----------------
-const registerUser = asyncHandler(async (req, res) => {
-    const { name, email, password } = req.body;
-    const existingUser = await User.findOne({ email });
-    if (existingUser) {
-        return res.status(409).json(new ApiError(409, "User with this email already exists"));
+// TypeScript version
+const registerUser = asyncHandler(async (req: Request, res: Response) => {
+  const { name, email, password } = req.body;
+
+  const existingUser = await User.findOne({ email });
+  if (existingUser) {
+    return res.status(409).json({
+      success: false,
+      statusCode: 409,
+      message: "User with this email already exists",
+      data: null
+    });
+  }
+
+  const user = await authService.register({ name, email, password } as any);
+
+  // Generate OTP
+  const otp = generateSixDigitsOTP();
+  const hashedOTP = await bcrypt.hash(otp, 10);
+
+  user.emailVerificationToken = hashedOTP;
+  user.emailVerificationTokenExpiry = new Date(Date.now() + 10 * 60 * 1000);
+  await user.save();
+
+  // Send OTP email
+  try {
+    const otpDigits = otp.split("");
+    const info = await sendMail(user.email, "Verify Your Email - MakeBreak", "email-verification-otp", {
+      name: user.name,
+      otpDigits,
+    });
+    console.log("OTP email sent:", info.messageId);
+  } catch (err) {
+    console.error("Email sending failed:", err);
+  }
+
+  return res.status(201).json({
+    success: true,
+    statusCode: 201,
+    message: "User registered successfully. Please check your email for verification code.",
+    data: {
+      userId: user._id,
+      email: user.email,
+      name: user.name
     }
-    const user = await authService.register({ name, email, password });
-    // Generate OTP
-    const otp = generateSixDigitsOTP();
-    const hashedOTP = await bcrypt.hash(otp, 10);
-    user.emailVerificationToken = hashedOTP;
-    user.emailVerificationTokenExpiry = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
-    await user.save();
-    // Send OTP email
-    try {
-        const otpDigits = otp.split("");
-        const info = await sendMail(user.email, "Verify Your Email - MakeBreak", "email-verification-otp", {
-            name: user.name,
-            otpDigits,
-        });
-        console.log("OTP email sent:", info.messageId);
-        console.log("Preview URL:", info.response || "No preview available");
-    }
-    catch (err) {
-        console.error("Email sending failed:", err);
-        // Registration still succeeds
-    }
-    res.status(201).json(new ApiResponse(201, "User registered successfully. Please check your email for verification code.", {
-        userId: user._id,
-        email: user.email,
-    }));
+  });
 });
 // ----------------- LOGIN USER -----------------
 const loginUser = asyncHandler(async (req, res) => {

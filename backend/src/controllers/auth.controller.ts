@@ -10,12 +10,18 @@ import { generateSixDigitsOTP } from "../config/OTPGenerator";
 import bcrypt from "bcryptjs";
 
 // ----------------- REGISTER USER -----------------
+// TypeScript version
 const registerUser = asyncHandler(async (req: Request, res: Response) => {
   const { name, email, password } = req.body;
 
   const existingUser = await User.findOne({ email });
   if (existingUser) {
-    return res.status(409).json(new ApiError(409, "User with this email already exists"));
+    return res.status(409).json({
+      success: false,
+      statusCode: 409,
+      message: "User with this email already exists",
+      data: null
+    });
   }
 
   const user = await authService.register({ name, email, password } as any);
@@ -25,7 +31,7 @@ const registerUser = asyncHandler(async (req: Request, res: Response) => {
   const hashedOTP = await bcrypt.hash(otp, 10);
 
   user.emailVerificationToken = hashedOTP;
-  user.emailVerificationTokenExpiry = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
+  user.emailVerificationTokenExpiry = new Date(Date.now() + 10 * 60 * 1000);
   await user.save();
 
   // Send OTP email
@@ -36,20 +42,21 @@ const registerUser = asyncHandler(async (req: Request, res: Response) => {
       otpDigits,
     });
     console.log("OTP email sent:", info.messageId);
-    console.log("Preview URL:", info.response || "No preview available");
   } catch (err) {
     console.error("Email sending failed:", err);
-    // Registration still succeeds
   }
 
-  res.status(201).json(
-    new ApiResponse(201, "User registered successfully. Please check your email for verification code.", {
+  return res.status(201).json({
+    success: true,
+    statusCode: 201,
+    message: "User registered successfully. Please check your email for verification code.",
+    data: {
       userId: user._id,
       email: user.email,
-    })
-  );
+      name: user.name
+    }
+  });
 });
-
 // ----------------- LOGIN USER -----------------
 const loginUser = asyncHandler(async (req: Request, res: Response) => {
   const { email, password } = req.body;

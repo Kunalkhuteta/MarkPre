@@ -1,13 +1,15 @@
-class ApiResponse{
-    status: number;
-    message: string;
-    data: any;
+class ApiResponse {
+  statusCode: number;
+  data: any;
+  message: string;
+  success: boolean;
 
-    constructor(status: number=200, message: string="data fetched successfully", data: any = {}){
-        this.status = status;
-        this.message = message;
-        this.data = data;
-    }
+  constructor(statusCode: number, message: string = "Success", data: any = null) {
+    this.statusCode = statusCode;
+    this.data = data;
+    this.message = message;
+    this.success = statusCode < 400;
+  }
 }
 
 export default ApiResponse;
