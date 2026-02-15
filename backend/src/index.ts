@@ -33,7 +33,18 @@ app.use("/api/auth", authRouter);
 app.use("/api/themes", themeRouter);
 app.use("/api/presentations", presentationRouter);
 app.use("/api/ai", aiRouter);
+// Add a health check route
+app.get('/', (req, res) => {
+  res.json({ 
+    status: 'ok', 
+    message: 'MakeBreak Backend API is running',
+    timestamp: new Date().toISOString()
+  });
+});
 
+app.get('/health', (req, res) => {
+  res.json({ status: 'healthy' });
+});
 // Start the server after connecting to the database
 connectDB()
     .then(() => {
