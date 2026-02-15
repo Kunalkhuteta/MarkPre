@@ -1,6 +1,6 @@
 import axios from "axios";
 import type { AxiosInstance } from "axios";
-let Baseurl=process.env.NEXT_PUBLIC_API_BASE_URL;
+let Baseurl=process.env.VITE_API_BASE_URL;
 export const api: AxiosInstance = axios.create({
   baseURL: Baseurl,
   withCredentials: true,
