@@ -3,10 +3,12 @@ import fs from "fs";
 import path from "path";
 import puppeteer from "puppeteer";
 import hljs from "highlight.js";
+import { markedHighlight } from 'marked-highlight';
 
-// Configure marked with highlight.js
-marked.setOptions({
-  highlight: function(code, lang) {
+// Configure marked with highlight.js using the new API
+marked.use(markedHighlight({
+  langPrefix: 'hljs language-',
+  highlight(code: string, lang: string) {
     if (lang && hljs.getLanguage(lang)) {
       try {
         return hljs.highlight(code, { language: lang }).value;
@@ -15,7 +17,11 @@ marked.setOptions({
       }
     }
     return hljs.highlightAuto(code).value;
-  },
+  }
+}));
+
+// Set other marked options
+marked.use({
   breaks: true,
   gfm: true,
 });
