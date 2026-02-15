@@ -1,0 +1,13 @@
+import { Router } from "express";
+import { addNewTheme, getThemeById, getThemes, updateTheme, deleteTheme, publicThemes } from "../controllers/theme.controller";
+import { validate } from "../middlewares/validation.middleware";
+import { authMiddleware } from "../middlewares/auth.middleware";
+import { addNewThemeSchema, updateThemeSchema } from "../schemas/theme.schema";
+const router = Router();
+router.route("/add-theme").post(authMiddleware, validate(addNewThemeSchema), addNewTheme);
+router.route("/update-theme/:id").put(authMiddleware, validate(updateThemeSchema), updateTheme);
+router.route("/get-all-themes-for-user").get(authMiddleware, getThemes);
+router.route("/get-theme/:id").get(getThemeById);
+router.route("/delete-theme/:id").delete(authMiddleware, deleteTheme);
+router.route("/public-themes").get(publicThemes);
+export default router;

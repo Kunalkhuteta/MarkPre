@@ -4,60 +4,52 @@ import path from "path";
 import puppeteer from "puppeteer";
 import hljs from "highlight.js";
 import { markedHighlight } from 'marked-highlight';
-
 // Configure marked with highlight.js using the new API
 marked.use(markedHighlight({
-  langPrefix: 'hljs language-',
-  highlight(code: string, lang: string) {
-    if (lang && hljs.getLanguage(lang)) {
-      try {
-        return hljs.highlight(code, { language: lang }).value;
-      } catch (err) {
-        console.error("Highlight error:", err);
-      }
+    langPrefix: 'hljs language-',
+    highlight(code, lang) {
+        if (lang && hljs.getLanguage(lang)) {
+            try {
+                return hljs.highlight(code, { language: lang }).value;
+            }
+            catch (err) {
+                console.error("Highlight error:", err);
+            }
+        }
+        return hljs.highlightAuto(code).value;
     }
-    return hljs.highlightAuto(code).value;
-  }
 }));
-
 // Set other marked options
 marked.use({
-  breaks: true,
-  gfm: true,
+    breaks: true,
+    gfm: true,
 });
-
 /**
  * Generate HTML with proper theme support
  */
-export async function exportToHTML(presentation: any): Promise<string> {
-  console.log("=== EXPORT TO HTML ===");
-  console.log("Presentation:", presentation.title);
-  console.log("Theme:", presentation.theme);
-
-  const slides = presentation.content
-    .split("---")
-    .map((s: string) => s.trim())
-    .filter((s: string) => s.length > 0);
-
-  console.log("Slides count:", slides.length);
-
-  // Get theme with proper defaults
-  const theme = presentation.theme || {
-    name: "Default",
-    primaryColor: "#3b82f6",
-    backgroundColor: "#ffffff",
-    textColor: "#1e293b",
-    fontFamily: "system-ui, -apple-system, sans-serif",
-  };
-
-  console.log("Using theme:", theme.name || "Default");
-
-  // Generate slide HTML
-  const slideHTML = slides
-    .map((slideContent: string, index: number) => {
-      const html = marked.parse(slideContent) as string;
-      
-      return `
+export async function exportToHTML(presentation) {
+    console.log("=== EXPORT TO HTML ===");
+    console.log("Presentation:", presentation.title);
+    console.log("Theme:", presentation.theme);
+    const slides = presentation.content
+        .split("---")
+        .map((s) => s.trim())
+        .filter((s) => s.length > 0);
+    console.log("Slides count:", slides.length);
+    // Get theme with proper defaults
+    const theme = presentation.theme || {
+        name: "Default",
+        primaryColor: "#3b82f6",
+        backgroundColor: "#ffffff",
+        textColor: "#1e293b",
+        fontFamily: "system-ui, -apple-system, sans-serif",
+    };
+    console.log("Using theme:", theme.name || "Default");
+    // Generate slide HTML
+    const slideHTML = slides
+        .map((slideContent, index) => {
+        const html = marked.parse(slideContent);
+        return `
         <div class="slide" data-slide="${index + 1}">
           <div class="slide-content">
             ${html}
@@ -66,9 +58,8 @@ export async function exportToHTML(presentation: any): Promise<string> {
         </div>
       `;
     })
-    .join("\n");
-
-  return `
+        .join("\n");
+    return `
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -291,132 +282,109 @@ export async function exportToHTML(presentation: any): Promise<string> {
 </html>
   `;
 }
-
 /**
  * Export to PDF with proper theme support - COMPLETELY REWRITTEN
  */
-export async function exportToPDF(presentation: any): Promise<string> {
-  console.log("=== EXPORT TO PDF START ===");
-  console.log("Presentation ID:", presentation._id);
-  console.log("Title:", presentation.title);
-  console.log("Theme:", presentation.theme);
-
-  // Generate HTML first
-  const html = await exportToHTML(presentation);
-  
-  // Create temp directory
-  const tempDir = path.join(process.cwd(), "temp");
-  if (!fs.existsSync(tempDir)) {
-    fs.mkdirSync(tempDir, { recursive: true });
-    console.log("Created temp directory:", tempDir);
-  }
-
-  const timestamp = Date.now();
-  const tempHtmlPath = path.join(tempDir, `${presentation._id}_${timestamp}.html`);
-  const pdfPath = path.join(tempDir, `${presentation._id}_${timestamp}.pdf`);
-
-  // Write HTML to temp file
-  fs.writeFileSync(tempHtmlPath, html, 'utf8');
-  console.log("HTML written to:", tempHtmlPath);
-  console.log("HTML size:", fs.statSync(tempHtmlPath).size, "bytes");
-
-  let browser;
-  try {
-    console.log("Launching Puppeteer...");
-    
-    browser = await puppeteer.launch({
-      headless: true,
-      args: [
-        '--no-sandbox',
-        '--disable-setuid-sandbox',
-        '--disable-dev-shm-usage',
-        '--disable-web-security',
-      ],
-    });
-
-    console.log("Browser launched");
-
-    const page = await browser.newPage();
-    console.log("New page created");
-
-    await page.setViewport({
-      width: 1920,
-      height: 1080,
-    });
-
-    const fileUrl = `file://${tempHtmlPath}`;
-    console.log("Loading URL:", fileUrl);
-
-    await page.goto(fileUrl, {
-      waitUntil: "networkidle0",
-      timeout: 30000,
-    });
-
-    console.log("Page loaded successfully");
-
-    // Wait for content to render
-    await page.waitForSelector('.slide', { timeout: 5000 });
-    console.log("Slides found on page");
-
-    // Small delay for fonts
-   await new Promise(resolve => setTimeout(resolve, 2000));
-
-    console.log("Generating PDF...");
-
-    await page.pdf({
-      path: pdfPath,
-      width: '1920px',
-      height: '1080px',
-      printBackground: true,
-      preferCSSPageSize: true,
-      margin: {
-        top: '0',
-        right: '0',
-        bottom: '0',
-        left: '0',
-      },
-    });
-
-    console.log("PDF generated at:", pdfPath);
-
-    // Verify PDF exists and has content
-    if (!fs.existsSync(pdfPath)) {
-      throw new Error("PDF file was not created");
+export async function exportToPDF(presentation) {
+    console.log("=== EXPORT TO PDF START ===");
+    console.log("Presentation ID:", presentation._id);
+    console.log("Title:", presentation.title);
+    console.log("Theme:", presentation.theme);
+    // Generate HTML first
+    const html = await exportToHTML(presentation);
+    // Create temp directory
+    const tempDir = path.join(process.cwd(), "temp");
+    if (!fs.existsSync(tempDir)) {
+        fs.mkdirSync(tempDir, { recursive: true });
+        console.log("Created temp directory:", tempDir);
     }
-
-    const pdfSize = fs.statSync(pdfPath).size;
-    console.log("PDF size:", pdfSize, "bytes");
-
-    if (pdfSize < 1000) {
-      throw new Error("PDF file is too small, probably empty");
-    }
-
-    // Clean up temp HTML
+    const timestamp = Date.now();
+    const tempHtmlPath = path.join(tempDir, `${presentation._id}_${timestamp}.html`);
+    const pdfPath = path.join(tempDir, `${presentation._id}_${timestamp}.pdf`);
+    // Write HTML to temp file
+    fs.writeFileSync(tempHtmlPath, html, 'utf8');
+    console.log("HTML written to:", tempHtmlPath);
+    console.log("HTML size:", fs.statSync(tempHtmlPath).size, "bytes");
+    let browser;
     try {
-      fs.unlinkSync(tempHtmlPath);
-      console.log("Temp HTML cleaned up");
-    } catch (err) {
-      console.error("Failed to clean HTML:", err);
+        console.log("Launching Puppeteer...");
+        browser = await puppeteer.launch({
+            headless: true,
+            args: [
+                '--no-sandbox',
+                '--disable-setuid-sandbox',
+                '--disable-dev-shm-usage',
+                '--disable-web-security',
+            ],
+        });
+        console.log("Browser launched");
+        const page = await browser.newPage();
+        console.log("New page created");
+        await page.setViewport({
+            width: 1920,
+            height: 1080,
+        });
+        const fileUrl = `file://${tempHtmlPath}`;
+        console.log("Loading URL:", fileUrl);
+        await page.goto(fileUrl, {
+            waitUntil: "networkidle0",
+            timeout: 30000,
+        });
+        console.log("Page loaded successfully");
+        // Wait for content to render
+        await page.waitForSelector('.slide', { timeout: 5000 });
+        console.log("Slides found on page");
+        // Small delay for fonts
+        await new Promise(resolve => setTimeout(resolve, 2000));
+        console.log("Generating PDF...");
+        await page.pdf({
+            path: pdfPath,
+            width: '1920px',
+            height: '1080px',
+            printBackground: true,
+            preferCSSPageSize: true,
+            margin: {
+                top: '0',
+                right: '0',
+                bottom: '0',
+                left: '0',
+            },
+        });
+        console.log("PDF generated at:", pdfPath);
+        // Verify PDF exists and has content
+        if (!fs.existsSync(pdfPath)) {
+            throw new Error("PDF file was not created");
+        }
+        const pdfSize = fs.statSync(pdfPath).size;
+        console.log("PDF size:", pdfSize, "bytes");
+        if (pdfSize < 1000) {
+            throw new Error("PDF file is too small, probably empty");
+        }
+        // Clean up temp HTML
+        try {
+            fs.unlinkSync(tempHtmlPath);
+            console.log("Temp HTML cleaned up");
+        }
+        catch (err) {
+            console.error("Failed to clean HTML:", err);
+        }
+        console.log("=== EXPORT TO PDF SUCCESS ===");
+        return pdfPath;
     }
-
-    console.log("=== EXPORT TO PDF SUCCESS ===");
-    return pdfPath;
-
-  } catch (error: any) {
-    console.error("=== EXPORT TO PDF ERROR ===");
-    console.error("Error:", error);
-    console.error("Stack:", error.stack);
-    
-    // Clean up on error
-    if (fs.existsSync(tempHtmlPath)) {
-      fs.unlinkSync(tempHtmlPath);
+    catch (error) {
+        console.error("=== EXPORT TO PDF ERROR ===");
+        console.error("Error:", error);
+        console.error("Stack:", error.stack);
+        // Clean up on error
+        if (fs.existsSync(tempHtmlPath)) {
+            fs.unlinkSync(tempHtmlPath);
+        }
+        throw new Error(`PDF generation failed: ${error.message}`);
     }
-    
-    throw new Error(`PDF generation failed: ${error.message}`);
-  } finally {
-    if (browser) {
-      await browser.close();
-      console.log("Browser closed");
+    finally {
+        if (browser) {
+            await browser.close();
+            console.log("Browser closed");
+        }
     }
-  }
 }
