@@ -1,4 +1,4 @@
-import nodemailer, { SentMessageInfo } from "nodemailer";
+import nodemailer from "nodemailer";
 import hbs from "nodemailer-express-handlebars";
 import path from "path";
 import { fileURLToPath } from "url";
@@ -8,63 +8,72 @@ const __dirname = path.dirname(__filename);
 
 // Transporter
 const transporter = nodemailer.createTransport({
-  host: process.env.EMAIL_HOST,
-  port: Number(process.env.EMAIL_PORT) || 587,
-  secure: false,
-  auth: {
-    user: process.env.EMAIL_USER,
-    pass: process.env.EMAIL_PASS,
-  },
+    host: process.env.EMAIL_HOST,
+    port: Number(process.env.EMAIL_PORT) || 587,
+    secure: false,
+    auth: {
+        user: process.env.EMAIL_USER,
+        pass: process.env.EMAIL_PASS,
+    },
 });
 
 // Templates path
 const templatesPath = path.resolve(__dirname, "../templates/emails");
 
-transporter.use(
-  "compile",
-  hbs({
+transporter.use("compile", hbs({
     viewEngine: {
-      extname: ".hbs",
-      partialsDir: templatesPath,
-      layoutsDir: templatesPath,
-      defaultLayout: false,
+        extname: ".hbs",
+        partialsDir: templatesPath,
+        layoutsDir: templatesPath,
+        defaultLayout: false,
     },
     viewPath: templatesPath,
     extName: ".hbs",
-  })
-);
-
-// Custom interface to include 'template' and 'context'
-interface HandlebarsMailOptions {
-  from: string;
-  to: string;
-  subject: string;
-  template: string; // template file name without .hbs
-  context?: Record<string, any>;
-}
+}));
 
 // Send mail function
 async function sendMail(
-  emailTo: string,
-  subject: string,
-  template: string,
-  context: Record<string, any> = {}
-): Promise<SentMessageInfo> {
-  // Cast as any to satisfy TypeScript
-  const mailOptions = {
-    from: process.env.EMAIL_USER,
-    to: emailTo,
-    subject,
-    template,
-    context,
-  } as any;
+    emailTo: string, 
+    subject: string, 
+    template: string, 
+    context: Record<string, any> = {}
+): Promise<any> {
+    // 🔥 LOG THE OTP IN DEVELOPMENT/STAGING
+    if (template === "email-verification-otp" && context.otpDigits) {
+        const otp = context.otpDigits.join("");
+        console.log("=====================================");
+        console.log("📧 EMAIL VERIFICATION OTP");
+        console.log("=====================================");
+        console.log("To:", emailTo);
+        console.log("OTP CODE:", otp);
+        console.log("=====================================");
+    }
 
-  const info = await transporter.sendMail(mailOptions);
+    const mailOptions: any = {
+        from: process.env.EMAIL_USER,
+        to: emailTo,
+        subject,
+        template,
+        context,
+    };
 
-  const previewUrl = nodemailer.getTestMessageUrl(info);
-  if (previewUrl) console.log("Preview URL:", previewUrl);
-
-  return info;
+    try {
+        const info = await transporter.sendMail(mailOptions);
+        const previewUrl = nodemailer.getTestMessageUrl(info);
+        
+        if (previewUrl) {
+            console.log("📬 Email Preview URL:", previewUrl);
+        }
+        
+        console.log("✅ Email sent successfully to:", emailTo);
+        console.log("Message ID:", info.messageId);
+        
+        return info;
+    } catch (error: any) {
+        console.error("❌ Email sending failed:", error);
+        console.error("Error details:", error.message);
+        throw error;
+    }
 }
 
 export default sendMail;
