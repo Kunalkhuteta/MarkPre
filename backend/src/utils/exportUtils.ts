@@ -1,38 +1,83 @@
 import { marked } from "marked";
 import fs from "fs";
 import path from "path";
-import puppeteer from "puppeteer";
+import puppeteer from "puppeteer-core";
 import hljs from "highlight.js";
 import DOMPurify from "dompurify";
 import { JSDOM } from "jsdom";
+import { markedHighlight } from 'marked-highlight';
 
+// DOMPurify setup
 const window = new JSDOM("").window as any;
 const purify = DOMPurify(window);
+
+// Configure marked with highlight.js
+marked.use(markedHighlight({
+  langPrefix: 'hljs language-',
+  highlight(code: string, lang: string) {
+    if (lang && hljs.getLanguage(lang)) {
+      try {
+        return hljs.highlight(code, { language: lang }).value;
+      } catch (err) {
+        console.error("Highlight error:", err);
+      }
+    }
+    return hljs.highlightAuto(code).value;
+  }
+}));
+
 marked.use({
-    renderer: {
-      code(code, infoString) {
-        const lang = infoString?.trim();
-        let highlighted;
-  
-        if (lang && hljs.getLanguage(lang)) {
-          highlighted = hljs.highlight(code, { language: lang }).value;
-        } else {
-          highlighted = hljs.highlightAuto(code).value;
-        }
-  
-        return `<pre><code class="hljs language-${lang || ""}">${highlighted}</code></pre>`;
-      },
-    },
-  });
-  
-  
+  breaks: true,
+  gfm: true,
+});
+
+/**
+ * Get Chromium executable path for different environments
+ */
+function getChromiumPath(): string {
+  // Check environment variable first (set in Render)
+  if (process.env.PUPPETEER_EXECUTABLE_PATH) {
+    console.log("🌐 Using PUPPETEER_EXECUTABLE_PATH:", process.env.PUPPETEER_EXECUTABLE_PATH);
+    return process.env.PUPPETEER_EXECUTABLE_PATH;
+  }
+
+  // Common paths for different environments
+  const possiblePaths = [
+    '/usr/bin/chromium-browser',   // Ubuntu/Render
+    '/usr/bin/chromium',           // Some Linux distros
+    '/usr/bin/google-chrome',      // Google Chrome on Linux
+    '/usr/bin/google-chrome-stable',
+    '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome', // macOS
+    'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe',   // Windows
+  ];
+
+  for (const chromePath of possiblePaths) {
+    if (fs.existsSync(chromePath)) {
+      console.log("✅ Found Chromium at:", chromePath);
+      return chromePath;
+    }
+  }
+
+  // Last resort
+  console.warn("⚠️ Could not find Chromium, using default path");
+  return '/usr/bin/chromium-browser';
+}
 
 /**
  * Generate HTML template with theme styling
  */
 export async function exportToHTML(presentation: any): Promise<string> {
-  const slides = presentation.content.split("---").filter((slide: string) => slide.trim());
-  
+  console.log("=== EXPORT TO HTML ===");
+  console.log("Title:", presentation.title);
+  console.log("Theme:", presentation.theme?.name || "Default");
+
+  const slides = presentation.content
+    .split("---")
+    .map((s: string) => s.trim())
+    .filter((s: string) => s.length > 0);
+
+  console.log("Slides count:", slides.length);
+
   const theme = presentation.theme || {
     name: "Default",
     primaryColor: "#3b82f6",
@@ -43,9 +88,8 @@ export async function exportToHTML(presentation: any): Promise<string> {
 
   const slideHTML = slides
     .map((slideContent: string, index: number) => {
-        const rawHtml = marked.parse(slideContent.trim()) as string;
-        const htmlContent = purify.sanitize(rawHtml);
-        
+      const rawHtml = marked.parse(slideContent.trim()) as string;
+      const htmlContent = purify.sanitize(rawHtml);
       return `
         <div class="slide" data-slide="${index + 1}">
           <div class="slide-content">
@@ -57,8 +101,7 @@ export async function exportToHTML(presentation: any): Promise<string> {
     })
     .join("");
 
-  return `
-<!DOCTYPE html>
+  return `<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
@@ -66,16 +109,12 @@ export async function exportToHTML(presentation: any): Promise<string> {
   <title>${presentation.title}</title>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github-dark.min.css">
   <style>
-    * {
-      margin: 0;
-      padding: 0;
-      box-sizing: border-box;
-    }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
 
     body {
-      font-family: ${theme.fontFamily};
+      font-family: ${theme.fontFamily || 'Inter, sans-serif'};
       background-color: #1a1a1a;
-      color: ${theme.textColor};
+      color: ${theme.textColor || '#000000'};
       overflow: hidden;
     }
 
@@ -93,8 +132,8 @@ export async function exportToHTML(presentation: any): Promise<string> {
       width: 100%;
       max-width: 1200px;
       height: 100%;
-      max-height: 675px; /* 16:9 aspect ratio */
-      background: ${theme.backgroundColor};
+      max-height: 675px;
+      background: ${theme.backgroundColor || '#ffffff'};
       border-radius: 12px;
       padding: 4rem;
       box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
@@ -109,26 +148,17 @@ export async function exportToHTML(presentation: any): Promise<string> {
     }
 
     @keyframes slideIn {
-      from {
-        opacity: 0;
-        transform: translateX(20px);
-      }
-      to {
-        opacity: 1;
-        transform: translateX(0);
-      }
+      from { opacity: 0; transform: translateX(20px); }
+      to { opacity: 1; transform: translateX(0); }
     }
 
-    .slide-content {
-      flex: 1;
-      overflow-y: auto;
-    }
+    .slide-content { flex: 1; overflow-y: auto; }
 
     .slide-content h1 {
       font-size: 3.5rem;
       font-weight: 700;
       margin-bottom: 2rem;
-      color: ${theme.primaryColor};
+      color: ${theme.primaryColor || '#3b82f6'};
       line-height: 1.2;
     }
 
@@ -136,7 +166,7 @@ export async function exportToHTML(presentation: any): Promise<string> {
       font-size: 2.5rem;
       font-weight: 600;
       margin-bottom: 1.5rem;
-      color: ${theme.primaryColor};
+      color: ${theme.primaryColor || '#3b82f6'};
       line-height: 1.3;
     }
 
@@ -144,7 +174,7 @@ export async function exportToHTML(presentation: any): Promise<string> {
       font-size: 2rem;
       font-weight: 500;
       margin-bottom: 1rem;
-      color: ${theme.textColor};
+      color: ${theme.textColor || '#000000'};
       opacity: 0.9;
     }
 
@@ -152,7 +182,7 @@ export async function exportToHTML(presentation: any): Promise<string> {
       font-size: 1.5rem;
       line-height: 1.8;
       margin-bottom: 1.5rem;
-      color: ${theme.textColor};
+      color: ${theme.textColor || '#000000'};
     }
 
     .slide-content ul, .slide-content ol {
@@ -164,7 +194,7 @@ export async function exportToHTML(presentation: any): Promise<string> {
       font-size: 1.5rem;
       line-height: 1.8;
       margin-bottom: 0.75rem;
-      color: ${theme.textColor};
+      color: ${theme.textColor || '#000000'};
     }
 
     .slide-content pre {
@@ -173,7 +203,7 @@ export async function exportToHTML(presentation: any): Promise<string> {
       padding: 1.5rem;
       margin-bottom: 1.5rem;
       overflow-x: auto;
-      border-left: 4px solid ${theme.primaryColor};
+      border-left: 4px solid ${theme.primaryColor || '#3b82f6'};
     }
 
     .slide-content code {
@@ -186,11 +216,11 @@ export async function exportToHTML(presentation: any): Promise<string> {
       padding: 0.2rem 0.4rem;
       border-radius: 4px;
       font-size: 1.2rem;
-      color: ${theme.primaryColor};
+      color: ${theme.primaryColor || '#3b82f6'};
     }
 
     .slide-content blockquote {
-      border-left: 4px solid ${theme.primaryColor};
+      border-left: 4px solid ${theme.primaryColor || '#3b82f6'};
       padding-left: 1.5rem;
       margin: 1.5rem 0;
       font-style: italic;
@@ -205,14 +235,9 @@ export async function exportToHTML(presentation: any): Promise<string> {
     }
 
     .slide-content a {
-      color: ${theme.primaryColor};
+      color: ${theme.primaryColor || '#3b82f6'};
       text-decoration: none;
-      border-bottom: 2px solid ${theme.primaryColor};
-      transition: opacity 0.2s;
-    }
-
-    .slide-content a:hover {
-      opacity: 0.7;
+      border-bottom: 2px solid ${theme.primaryColor || '#3b82f6'};
     }
 
     .slide-number {
@@ -221,7 +246,7 @@ export async function exportToHTML(presentation: any): Promise<string> {
       right: 2rem;
       font-size: 1rem;
       opacity: 0.5;
-      color: ${theme.textColor};
+      color: ${theme.textColor || '#000000'};
     }
 
     .controls {
@@ -235,7 +260,7 @@ export async function exportToHTML(presentation: any): Promise<string> {
     }
 
     .controls button {
-      background: ${theme.primaryColor};
+      background: ${theme.primaryColor || '#3b82f6'};
       color: white;
       border: none;
       padding: 0.75rem 1.5rem;
@@ -243,7 +268,6 @@ export async function exportToHTML(presentation: any): Promise<string> {
       font-size: 1rem;
       cursor: pointer;
       transition: transform 0.2s, opacity 0.2s;
-      font-family: ${theme.fontFamily};
     }
 
     .controls button:hover:not(:disabled) {
@@ -257,19 +281,22 @@ export async function exportToHTML(presentation: any): Promise<string> {
     }
 
     @media print {
+      body { background: white; overflow: visible; }
+      .presentation-container { padding: 0; display: block; }
       .slide {
-        page-break-after: always;
         display: flex !important;
+        page-break-after: always;
+        page-break-inside: avoid;
         max-height: none;
-        height: auto;
+        height: 100vh;
+        border-radius: 0;
         box-shadow: none;
+        max-width: none;
+        width: 100%;
       }
-      .controls {
-        display: none;
-      }
-      .slide-number {
-        display: none;
-      }
+      .slide:last-child { page-break-after: auto; }
+      .controls { display: none !important; }
+      .slide-number { display: none !important; }
     }
   </style>
 </head>
@@ -295,14 +322,12 @@ export async function exportToHTML(presentation: any): Promise<string> {
       slides.forEach(slide => slide.classList.remove('active'));
       currentSlide = Math.max(0, Math.min(n, slides.length - 1));
       slides[currentSlide].classList.add('active');
-      
       prevBtn.disabled = currentSlide === 0;
       nextBtn.disabled = currentSlide === slides.length - 1;
     }
 
     prevBtn.addEventListener('click', () => showSlide(currentSlide - 1));
     nextBtn.addEventListener('click', () => showSlide(currentSlide + 1));
-    
     fullscreenBtn.addEventListener('click', () => {
       if (!document.fullscreenElement) {
         document.documentElement.requestFullscreen();
@@ -311,69 +336,124 @@ export async function exportToHTML(presentation: any): Promise<string> {
       }
     });
 
-    // Keyboard navigation
     document.addEventListener('keydown', (e) => {
       if (e.key === 'ArrowLeft') showSlide(currentSlide - 1);
-      if (e.key === 'ArrowRight') showSlide(currentSlide + 1);
+      if (e.key === 'ArrowRight' || e.key === ' ') {
+        e.preventDefault();
+        showSlide(currentSlide + 1);
+      }
       if (e.key === 'f') fullscreenBtn.click();
+      if (e.key === 'Escape' && document.fullscreenElement) document.exitFullscreen();
     });
 
-    // Show first slide
     showSlide(0);
   </script>
 </body>
-</html>
-  `;
+</html>`;
 }
 
 /**
  * Export presentation to PDF with theme styling
  */
 export async function exportToPDF(presentation: any): Promise<string> {
+  console.log("=== EXPORT TO PDF START ===");
+  console.log("Presentation ID:", presentation._id);
+  console.log("Title:", presentation.title);
+
   const html = await exportToHTML(presentation);
-  
-  // Create temp directory if it doesn't exist
+
+  // Create temp directory
   const tempDir = path.join(process.cwd(), "temp");
   if (!fs.existsSync(tempDir)) {
     fs.mkdirSync(tempDir, { recursive: true });
+    console.log("Created temp directory:", tempDir);
   }
 
-  const tempHtmlPath = path.join(tempDir, `${presentation._id}_temp.html`);
-  const pdfPath = path.join(tempDir, `${presentation._id}.pdf`);
+  const timestamp = Date.now();
+  const tempHtmlPath = path.join(tempDir, `${presentation._id}_${timestamp}.html`);
+  const pdfPath = path.join(tempDir, `${presentation._id}_${timestamp}.pdf`);
 
-  // Write HTML to temp file
-  fs.writeFileSync(tempHtmlPath, html);
+  fs.writeFileSync(tempHtmlPath, html, 'utf8');
+  console.log("HTML written, size:", fs.statSync(tempHtmlPath).size, "bytes");
 
-  // Launch browser and generate PDF
-  const browser = await puppeteer.launch({
-    headless: true,
-    args: ['--no-sandbox', '--disable-setuid-sandbox'],
-  });
+  const executablePath = getChromiumPath();
+  console.log("Launching Puppeteer with:", executablePath);
 
+  let browser;
   try {
+    browser = await puppeteer.launch({
+      executablePath,
+      headless: true,
+      args: [
+        '--no-sandbox',
+        '--disable-setuid-sandbox',
+        '--disable-dev-shm-usage',
+        '--disable-gpu',
+        '--no-first-run',
+        '--no-zygote',
+        '--single-process',
+      ],
+    });
+
+    console.log("✅ Browser launched");
+
     const page = await browser.newPage();
-    await page.goto(`file://${tempHtmlPath}`, { waitUntil: "networkidle0" });
+    await page.setViewport({ width: 1920, height: 1080 });
 
-    // Generate PDF with proper slide dimensions
+    await page.goto(`file://${tempHtmlPath}`, {
+      waitUntil: "networkidle0",
+      timeout: 30000,
+    });
+
+    console.log("✅ Page loaded");
+
+    await page.waitForSelector('.slide', { timeout: 5000 });
+
+    // Wait for fonts/animations
+    await new Promise(resolve => setTimeout(resolve, 1500));
+
     await page.pdf({
-        path: pdfPath,
-        width: "1920px",
-        height: "1080px",
-        printBackground: true,
-        margin: {
-          top: "0",
-          right: "0",
-          bottom: "0",
-          left: "0",
-        },
-      });
-      
+      path: pdfPath,
+      width: '1920px',
+      height: '1080px',
+      printBackground: true,
+      margin: { top: '0', right: '0', bottom: '0', left: '0' },
+    });
 
-    // Clean up temp HTML
-    fs.unlinkSync(tempHtmlPath);
+    console.log("✅ PDF generated");
 
+    // Verify PDF
+    if (!fs.existsSync(pdfPath)) {
+      throw new Error("PDF file was not created");
+    }
+
+    const pdfSize = fs.statSync(pdfPath).size;
+    console.log("PDF size:", pdfSize, "bytes");
+
+    if (pdfSize < 1000) {
+      throw new Error("PDF file is too small, likely empty");
+    }
+
+    // Cleanup temp HTML
+    try { fs.unlinkSync(tempHtmlPath); } catch (e) {
+      console.warn("Could not delete temp HTML:", e);
+    }
+
+    console.log("=== EXPORT TO PDF SUCCESS ===");
     return pdfPath;
+
+  } catch (error: any) {
+    console.error("=== EXPORT TO PDF ERROR ===");
+    console.error("Error:", error.message);
+
+    // Cleanup on error
+    try { if (fs.existsSync(tempHtmlPath)) fs.unlinkSync(tempHtmlPath); } catch {}
+
+    throw new Error(`PDF generation failed: ${error.message}`);
   } finally {
-    await browser.close();
+    if (browser) {
+      await browser.close();
+      console.log("Browser closed");
+    }
   }
 }
