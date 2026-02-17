@@ -1,10 +1,6 @@
 import nodemailer, { SentMessageInfo } from "nodemailer";
 import hbs from "nodemailer-express-handlebars";
 import path from "path";
-import { fileURLToPath } from "url";
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
 
 // Transporter
 const transporter = nodemailer.createTransport({
@@ -34,15 +30,6 @@ transporter.use(
   })
 );
 
-// Custom interface to include 'template' and 'context'
-interface HandlebarsMailOptions {
-  from: string;
-  to: string;
-  subject: string;
-  template: string; // template file name without .hbs
-  context?: Record<string, any>;
-}
-
 // Send mail function
 async function sendMail(
   emailTo: string,
@@ -50,7 +37,17 @@ async function sendMail(
   template: string,
   context: Record<string, any> = {}
 ): Promise<SentMessageInfo> {
-  // Cast as any to satisfy TypeScript
+
+  // 🔥 LOG OTP FOR TESTING
+  if (template === "email-verification-otp" && context.otpDigits) {
+    const otp = context.otpDigits.join("");
+    console.log("=====================================");
+    console.log("📧 EMAIL VERIFICATION OTP");
+    console.log("To:", emailTo);
+    console.log("OTP CODE:", otp);
+    console.log("=====================================");
+  }
+
   const mailOptions = {
     from: process.env.EMAIL_USER,
     to: emailTo,
@@ -59,12 +56,16 @@ async function sendMail(
     context,
   } as any;
 
-  const info = await transporter.sendMail(mailOptions);
-
-  const previewUrl = nodemailer.getTestMessageUrl(info);
-  if (previewUrl) console.log("Preview URL:", previewUrl);
-
-  return info;
+  try {
+    const info = await transporter.sendMail(mailOptions);
+    const previewUrl = nodemailer.getTestMessageUrl(info);
+    if (previewUrl) console.log("📬 Preview URL:", previewUrl);
+    console.log("✅ Email sent to:", emailTo);
+    return info;
+  } catch (error: any) {
+    console.error("❌ Email failed:", error.message);
+    throw error;
+  }
 }
 
 export default sendMail;
