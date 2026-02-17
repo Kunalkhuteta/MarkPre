@@ -1,6 +1,5 @@
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -34,6 +33,7 @@ function Register() {
       await api.post("/auth/register", values);
       toast.success("Registration successful! Please check your email to verify your account.");
       navigate("/login");
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     } catch (error) {
       toast.error("Registration failed. Please try again.");
     }
