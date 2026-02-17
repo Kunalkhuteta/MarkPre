@@ -4,11 +4,11 @@ import type { IUser } from "../types/user.type";
 import sendMail from "../config/mailer";
 import crypto from "crypto";
 
-class AuthService{
+class AuthService {
     constructor(private userModel: typeof User) {}
 
     async register(userData: IUser): Promise<IUser> {
-        const existingUser = await this.userModel.findOne({email: userData.email});
+        const existingUser = await this.userModel.findOne({ email: userData.email });
         if (existingUser) throw new Error("User already exists");
 
         const user = new this.userModel(userData);
@@ -16,12 +16,12 @@ class AuthService{
         return user;
     }
 
-    async login(credentials:{ email: string, password: string}): Promise<{
+    async login(credentials: { email: string; password: string }): Promise<{
         user: any;
         accessToken: string;
         refreshToken: string;
     }> {
-        const user = await this.userModel.findOne({email: credentials.email});
+        const user = await this.userModel.findOne({ email: credentials.email });
         if (!user) throw new ApiError(401, "User not found with this email");
 
         const isMatch = await user.comparePassword(credentials.password);
@@ -35,7 +35,7 @@ class AuthService{
         user.refreshToken = refreshToken;
         await user.save();
 
-        return {user, accessToken, refreshToken};
+        return { user, accessToken, refreshToken };
     }
 
     async logout(userId: string): Promise<void> {
@@ -46,51 +46,68 @@ class AuthService{
         const user = await this.userModel.findOne({ email });
 
         if (!user) {
-            throw new ApiError(404, "User not found.")
+            throw new ApiError(404, "User not found.");
         }
-        
+
         const resetToken = user.generateResetPasswordToken();
         await user.save({ validateBeforeSave: false });
-        
-        // const resetURL = `${req.protocol}://${req.get('host')}/auth/reset-password/${resetToken}`;
-        const resetURL = `http://${process.env.DOMAIN_NAME || 'localhost'}:5173/reset-password/${resetToken}`;;
+
+        // ✅ Works for both local and production
+        const isProduction = process.env.NODE_ENV === "production";
+        const protocol = isProduction ? "https" : "http";
+        const domain = process.env.DOMAIN_NAME || "localhost:5173";
+        const resetURL = `${protocol}://${domain}/reset-password/${resetToken}`;
+
+        console.log("🔗 Reset URL:", resetURL);
 
         try {
-            await sendMail(user.email, "Reset Your Password", "forgot-password-email", {
-                name: user.name,
-                resetLink: resetURL,
-                year: new Date().getFullYear()
-            });
+            await sendMail(
+                user.email,
+                "Reset Your Password",
+                "forgot-password-email",
+                {
+                    name: user.name,
+                    resetLink: resetURL,
+                    year: new Date().getFullYear(),
+                }
+            );
+
+            console.log("✅ Reset email sent to:", user.email);
         } catch (error) {
-            console.error("Failed to send email:", error);
+            console.error("❌ Failed to send reset email:", error);
+
+            // Rollback token if email fails
             user.forgotPasswordToken = undefined;
             user.forgotPasswordTokenExpiry = undefined;
             await user.save({ validateBeforeSave: false });
-            throw new ApiError(500, 'Email could not be sent');
+
+            throw new ApiError(500, "Email could not be sent. Please try again.");
         }
-        
     }
 
     async resetPassword(token: string, newPassword: string): Promise<void> {
-        const hashedToken = crypto.createHash('sha256').update(token).digest('hex');
+        const hashedToken = crypto
+            .createHash("sha256")
+            .update(token)
+            .digest("hex");
 
         const user = await User.findOne({
             forgotPasswordToken: hashedToken,
-            forgotPasswordTokenExpiry: { $gt: Date.now() }
+            forgotPasswordTokenExpiry: { $gt: Date.now() },
         });
-        
+
         if (!user) {
-            throw new ApiError(400, 'Invalid or expired token')
+            throw new ApiError(400, "Invalid or expired token");
         }
+
         user.password = newPassword;
         user.forgotPasswordToken = undefined;
         user.forgotPasswordTokenExpiry = undefined;
 
         await user.save();
-   }
 
-   
-
+        console.log("✅ Password reset successful for:", user.email);
+    }
 }
 
 export default new AuthService(User);
