@@ -2,6 +2,13 @@ import nodemailer, { SentMessageInfo } from "nodemailer";
 import hbs from "nodemailer-express-handlebars";
 import path from "path";
 
+// ✅ THE FIX: Reference src/templates directly
+// Render deploys your full project, so src/ folder exists alongside dist/
+const templatesPath = path.resolve(process.cwd(), "src/templates/emails");
+
+console.log("📧 Templates path:", templatesPath);
+console.log("📦 CWD:", process.cwd());
+
 // Transporter
 const transporter = nodemailer.createTransport({
   host: process.env.EMAIL_HOST,
@@ -12,9 +19,6 @@ const transporter = nodemailer.createTransport({
     pass: process.env.EMAIL_PASS,
   },
 });
-
-// Templates path
-const templatesPath = path.resolve(__dirname, "../templates/emails");
 
 transporter.use(
   "compile",
