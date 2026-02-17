@@ -16,7 +16,7 @@ const PORT = process.env.PORT || 8000;
 const allowedOrigins = [
   'http://localhost:5173',
   'http://localhost:3000',
-  'https://mark-hezji869c-kunal-khutetas-projects.vercel.app',
+  process.env.FRONTEND_URL,
 ];
 
 if (process.env.FRONTEND_URL) {
