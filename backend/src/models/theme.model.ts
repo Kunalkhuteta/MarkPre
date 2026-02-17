@@ -8,20 +8,23 @@ const themeSchema = new mongoose.Schema(
       trim: true,
     },
     description: {
-        type: String,
-        default: "No description provided",
+      type: String,
+      default: "",
     },
     primaryColor: {
       type: String,
+      required: true,
       default: "#3b82f6",
     },
     backgroundColor: {
       type: String,
+      required: true,
       default: "#ffffff",
     },
     textColor: {
       type: String,
-      default: "#000000",
+      required: true,
+      default: "#1e293b",
     },
     fontFamily: {
       type: String,
@@ -36,4 +39,8 @@ const themeSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
+// Index for faster queries
+themeSchema.index({ user: 1 });
+
 export const Theme = mongoose.model("Theme", themeSchema);
+export default Theme;

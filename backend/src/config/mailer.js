@@ -32,12 +32,7 @@ transporter.use("compile", hbs({
 }));
 
 // Send mail function
-async function sendMail(
-    emailTo: string, 
-    subject: string, 
-    template: string, 
-    context: Record<string, any> = {}
-): Promise<any> {
+async function sendMail(emailTo, subject, template, context = {}) {
     // 🔥 LOG THE OTP IN DEVELOPMENT/STAGING
     if (template === "email-verification-otp" && context.otpDigits) {
         const otp = context.otpDigits.join("");
@@ -49,7 +44,7 @@ async function sendMail(
         console.log("=====================================");
     }
 
-    const mailOptions: any = {
+    const mailOptions = {
         from: process.env.EMAIL_USER,
         to: emailTo,
         subject,
@@ -69,9 +64,8 @@ async function sendMail(
         console.log("Message ID:", info.messageId);
         
         return info;
-    } catch (error: any) {
+    } catch (error) {
         console.error("❌ Email sending failed:", error);
-        console.error("Error details:", error.message);
         throw error;
     }
 }

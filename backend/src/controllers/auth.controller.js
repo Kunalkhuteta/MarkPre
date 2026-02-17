@@ -1,15 +1,15 @@
-import asyncHandler from "../utils/asyncHandler";
-import ApiError from "../utils/ApiError";
-import User from "../models/user.model";
-import { Request, Response } from "express";
-import { cookieOptions } from "../config/constants";
-import authService from "../services/auth.service";
-import sendMail from "../config/mailer";
-import { generateSixDigitsOTP } from "../config/OTPGenerator";
+import asyncHandler from "../utils/asyncHandler.js";
+import ApiResponse from "../utils/ApiResponse.js";
+import ApiError from "../utils/ApiError.js";
+import User from "../models/user.model.js";
+import { cookieOptions } from "../config/constants.js";
+import authService from "../services/auth.service.js";
+import sendMail from "../config/mailer.js";
+import { generateSixDigitsOTP } from "../config/OTPGenerator.js";
 import bcrypt from "bcryptjs";
 
 // ----------------- REGISTER USER -----------------
-const registerUser = asyncHandler(async (req: Request, res: Response) => {
+const registerUser = asyncHandler(async (req, res) => {
   const { name, email, password } = req.body;
 
   const existingUser = await User.findOne({ email });
@@ -22,7 +22,7 @@ const registerUser = asyncHandler(async (req: Request, res: Response) => {
     });
   }
 
-  const user = await authService.register({ name, email, password } as any);
+  const user = await authService.register({ name, email, password });
 
   // Generate OTP
   const otp = generateSixDigitsOTP();
@@ -68,7 +68,7 @@ const registerUser = asyncHandler(async (req: Request, res: Response) => {
 });
 
 // ----------------- LOGIN USER -----------------
-const loginUser = asyncHandler(async (req: Request, res: Response) => {
+const loginUser = asyncHandler(async (req, res) => {
   const { email, password } = req.body;
 
   const loginData = await authService.login({ email, password });
@@ -130,132 +130,84 @@ const loginUser = asyncHandler(async (req: Request, res: Response) => {
     .status(200)
     .cookie("accessToken", loginData.accessToken, cookieOptions)
     .cookie("refreshToken", loginData.refreshToken, cookieOptions)
-    .json({
-      success: true,
-      statusCode: 200,
-      message: "User logged in successfully",
-      data: {
-        user: {
-          id: loginData.user._id,
-          name: loginData.user.name,
-          email: loginData.user.email,
-          isEmailVerified: loginData.user.isEmailVerified,
-        },
-        token: loginData.accessToken,
-      }
-    });
+    .json(new ApiResponse(200, "User logged in successfully", {
+      user: {
+        id: loginData.user._id,
+        name: loginData.user.name,
+        email: loginData.user.email,
+        isEmailVerified: loginData.user.isEmailVerified,
+      },
+      token: loginData.accessToken,
+    }));
 });
 
 // ----------------- LOGOUT USER -----------------
-const logoutUser = asyncHandler(async (req: Request, res: Response) => {
+const logoutUser = asyncHandler(async (req, res) => {
   await authService.logout(req.user.id);
 
   res
     .status(200)
     .clearCookie("accessToken", cookieOptions)
     .clearCookie("refreshToken", cookieOptions)
-    .json({
-      success: true,
-      statusCode: 200,
-      message: "User logged out successfully",
-      data: null
-    });
+    .json(new ApiResponse(200, "User logged out successfully"));
 });
 
 // ----------------- GET CURRENT USER -----------------
-const getCurrentUser = asyncHandler(async (req: Request, res: Response) => {
+const getCurrentUser = asyncHandler(async (req, res) => {
   const user = await User.findById(req.user.id).select("-password -refreshToken");
 
   if (!user) {
-    return res.status(404).json({
-      success: false,
-      statusCode: 404,
-      message: "User not found",
-      data: null
-    });
+    return res.status(404).json(new ApiError(404, "User not found"));
   }
 
-  res.status(200).json({
-    success: true,
-    statusCode: 200,
-    message: "Current user fetched successfully",
-    data: {
-      id: user._id,
-      name: user.name,
-      email: user.email,
-      isEmailVerified: user.isEmailVerified,
-      plan: user.plan || "free",
-    }
-  });
+  res.status(200).json(new ApiResponse(200, "Current user fetched successfully", {
+    id: user._id,
+    name: user.name,
+    email: user.email,
+    isEmailVerified: user.isEmailVerified,
+    plan: user.plan || "free",
+  }));
 });
 
 // ----------------- FORGOT PASSWORD -----------------
-const forgotPassword = asyncHandler(async (req: Request, res: Response) => {
+const forgotPassword = asyncHandler(async (req, res) => {
   const { email } = req.body;
   await authService.forgotPassword(email);
-  res.status(200).json({
-    success: true,
-    statusCode: 200,
-    message: "Password reset link sent to your email",
-    data: null
-  });
+  res.status(200).json(new ApiResponse(200, "Password reset link sent to your email"));
 });
 
 // ----------------- RESET PASSWORD -----------------
-const resetPassword = asyncHandler(async (req: Request, res: Response) => {
+const resetPassword = asyncHandler(async (req, res) => {
   const { token } = req.params;
   const { password } = req.body;
 
   if (!password || password.length < 6) {
-    return res.status(400).json({
-      success: false,
-      statusCode: 400,
-      message: "Password must be at least 6 characters long",
-      data: null
-    });
+    return res.status(400).json(new ApiError(400, "Password must be at least 6 characters long"));
   }
 
   await authService.resetPassword(token, password);
-  res.status(200).json({
-    success: true,
-    statusCode: 200,
-    message: "Password reset successful",
-    data: null
-  });
+  res.status(200).json(new ApiResponse(200, "Password reset successful"));
 });
 
 // ----------------- GENERATE EMAIL VERIFICATION OTP -----------------
-const generateEmailVerificationToken = asyncHandler(async (req: Request, res: Response) => {
+const generateEmailVerificationToken = asyncHandler(async (req, res) => {
   const user = await User.findById(req.user.id);
 
   if (!user) {
-    return res.status(404).json({
-      success: false,
-      statusCode: 404,
-      message: "User not found",
-      data: null
-    });
+    return res.status(404).json(new ApiError(404, "User not found"));
   }
 
   if (user.isEmailVerified) {
-    return res.status(400).json({
-      success: false,
-      statusCode: 400,
-      message: "Email already verified",
-      data: null
-    });
+    return res.status(400).json(new ApiError(400, "Email already verified"));
   }
 
   // Rate limiting
   if (user.emailVerificationTokenExpiry && user.emailVerificationTokenExpiry > new Date()) {
     const secondsRemaining = Math.ceil((user.emailVerificationTokenExpiry.getTime() - Date.now()) / 1000);
     if (secondsRemaining > 540) {
-      return res.status(429).json({
-        success: false,
-        statusCode: 429,
-        message: `Please wait ${Math.ceil((600 - (600 - secondsRemaining)) / 60)} minute(s) before requesting a new code`,
-        data: null
-      });
+      return res.status(429).json(
+        new ApiError(429, `Please wait ${Math.ceil((600 - (600 - secondsRemaining)) / 60)} minute(s) before requesting a new code`)
+      );
     }
   }
 
@@ -285,86 +237,44 @@ const generateEmailVerificationToken = asyncHandler(async (req: Request, res: Re
       otpDigits,
     });
     console.log("✅ OTP email sent:", info.messageId);
-    
-    res.status(200).json({
-      success: true,
-      statusCode: 200,
-      message: "Verification code sent to your email",
-      data: null
-    });
+    res.status(200).json(new ApiResponse(200, "Verification code sent to your email"));
   } catch (err) {
     console.error("❌ Email sending failed:", err);
     console.log("⚠️ Email failed, but OTP is:", otp);
-    
-    res.status(500).json({
-      success: false,
-      statusCode: 500,
-      message: "Failed to send verification email. Please try again.",
-      data: null
-    });
+    res.status(500).json(new ApiError(500, "Failed to send verification email. Please try again."));
   }
 });
 
 // ----------------- VERIFY EMAIL WITH OTP -----------------
-const verifyEmail = asyncHandler(async (req: Request, res: Response) => {
+const verifyEmail = asyncHandler(async (req, res) => {
   const { token } = req.body;
 
   if (!token || token.length !== 6) {
-    return res.status(400).json({
-      success: false,
-      statusCode: 400,
-      message: "Invalid verification code",
-      data: null
-    });
+    return res.status(400).json(new ApiError(400, "Invalid verification code"));
   }
 
   const user = await User.findById(req.user.id);
 
   if (!user) {
-    return res.status(404).json({
-      success: false,
-      statusCode: 404,
-      message: "User not found",
-      data: null
-    });
+    return res.status(404).json(new ApiError(404, "User not found"));
   }
 
   if (user.isEmailVerified) {
-    return res.status(400).json({
-      success: false,
-      statusCode: 400,
-      message: "Email already verified",
-      data: null
-    });
+    return res.status(400).json(new ApiError(400, "Email already verified"));
   }
 
   if (!user.emailVerificationToken || !user.emailVerificationTokenExpiry) {
-    return res.status(400).json({
-      success: false,
-      statusCode: 400,
-      message: "No verification code found. Please request a new one.",
-      data: null
-    });
+    return res.status(400).json(new ApiError(400, "No verification code found. Please request a new one."));
   }
 
   if (user.emailVerificationTokenExpiry < new Date()) {
-    return res.status(400).json({
-      success: false,
-      statusCode: 400,
-      message: "Verification code expired. Please request a new one.",
-      data: null
-    });
+    return res.status(400).json(new ApiError(400, "Verification code expired. Please request a new one."));
   }
 
   const isValidOTP = await bcrypt.compare(token, user.emailVerificationToken);
 
   if (!isValidOTP) {
-    return res.status(400).json({
-      success: false,
-      statusCode: 400,
-      message: "Invalid verification code",
-      data: null
-    });
+    return res.status(400).json(new ApiError(400, "Invalid verification code"));
   }
 
   user.isEmailVerified = true;
@@ -376,47 +286,33 @@ const verifyEmail = asyncHandler(async (req: Request, res: Response) => {
 
   // Send success email
   try {
-    await sendMail(user.email, "Email Verified Successfully - MakeBreak", "email-verified-success", {
+    const info = await sendMail(user.email, "Email Verified Successfully - MakeBreak", "email-verified-success", {
       name: user.name,
     });
+    console.log("Email verified success email sent:", info.messageId);
   } catch (error) {
     console.error("Success email error:", error);
   }
 
-  res.status(200).json({
-    success: true,
-    statusCode: 200,
-    message: "Email verified successfully",
-    data: null
-  });
+  res.status(200).json(new ApiResponse(200, "Email verified successfully"));
 });
 
 // ----------------- REFRESH ACCESS TOKEN -----------------
-const refreshAccessToken = asyncHandler(async (req: Request, res: Response) => {
+const refreshAccessToken = asyncHandler(async (req, res) => {
   const refreshToken = req.cookies?.refreshToken || req.body.refreshToken;
 
   if (!refreshToken) {
-    return res.status(401).json({
-      success: false,
-      statusCode: 401,
-      message: "Refresh token required",
-      data: null
-    });
+    return res.status(401).json(new ApiError(401, "Refresh token required"));
   }
 
   try {
     const jwt = await import("jsonwebtoken");
-    const decoded: any = jwt.verify(refreshToken, process.env.REFRESH_TOKEN_SECRET!);
+    const decoded = jwt.verify(refreshToken, process.env.REFRESH_TOKEN_SECRET);
 
     const user = await User.findById(decoded._id);
 
     if (!user || user.refreshToken !== refreshToken) {
-      return res.status(401).json({
-        success: false,
-        statusCode: 401,
-        message: "Invalid refresh token",
-        data: null
-      });
+      return res.status(401).json(new ApiError(401, "Invalid refresh token"));
     }
 
     const newAccessToken = user.generateAccessToken();
@@ -429,21 +325,11 @@ const refreshAccessToken = asyncHandler(async (req: Request, res: Response) => {
       .status(200)
       .cookie("accessToken", newAccessToken, cookieOptions)
       .cookie("refreshToken", newRefreshToken, cookieOptions)
-      .json({
-        success: true,
-        statusCode: 200,
-        message: "Access token refreshed",
-        data: {
-          accessToken: newAccessToken,
-        }
-      });
+      .json(new ApiResponse(200, "Access token refreshed", {
+        accessToken: newAccessToken,
+      }));
   } catch (error) {
-    return res.status(401).json({
-      success: false,
-      statusCode: 401,
-      message: "Invalid or expired refresh token",
-      data: null
-    });
+    return res.status(401).json(new ApiError(401, "Invalid or expired refresh token"));
   }
 });
 

@@ -11,7 +11,6 @@ import SlidePreview from "@/components/SlidePreview";
 import { Save, Download, ArrowLeft, Maximize2, Eye, EyeOff, Sparkles, Presentation, Wand2, FileText, Moon, Sun } from "lucide-react";
 import {
   AlertDialog,
-  AlertDialogAction,
   AlertDialogCancel,
   AlertDialogContent,
   AlertDialogDescription,
@@ -44,7 +43,7 @@ function Editor() {
   const [lastSaved, setLastSaved] = useState<Date | null>(null);
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   const [showPreview, setShowPreview] = useState(true);
-  const [isFullscreen, setIsFullscreen] = useState(false);
+  
   
   // AI States
   const [showAIDialog, setShowAIDialog] = useState(false);
@@ -54,34 +53,27 @@ function Editor() {
   const [aiStyle, setAiStyle] = useState("professional");
 
   useEffect(() => {
-    // Load themes
     loadThemes();
 
-    // Load presentation if editing
     if (id) {
       loadPresentation();
     }
 
-    // Auto-save every 30 seconds
     const autoSaveInterval = setInterval(() => {
       if (hasUnsavedChanges && title && markdown) {
         handleSave(true);
       }
     }, 30000);
 
-    // Keyboard shortcuts
     const handleKeyboard = (e: KeyboardEvent) => {
-      // Ctrl/Cmd + S to save
       if ((e.ctrlKey || e.metaKey) && e.key === "s") {
         e.preventDefault();
         handleSave(false);
       }
-      // Ctrl/Cmd + P for preview toggle
       if ((e.ctrlKey || e.metaKey) && e.key === "p") {
         e.preventDefault();
         setShowPreview(!showPreview);
       }
-      // F11 for fullscreen
       if (e.key === "F11") {
         e.preventDefault();
         toggleFullscreen();
@@ -99,9 +91,11 @@ function Editor() {
   const loadThemes = async () => {
     try {
       const res = await api.get("/themes/get-all-themes-for-user");
+      console.log("Loaded themes:", res.data.data);
       setThemes(res.data.data || []);
     } catch (error) {
-      console.error("Failed to load themes");
+      console.error("Failed to load themes:", error);
+      toast.error("Failed to load themes");
     }
   };
 
@@ -109,12 +103,31 @@ function Editor() {
     try {
       const res = await api.get(`/presentations/get-presentation/${id}`);
       const data = res.data.data;
+      
+      console.log("Loaded presentation:", data);
+      console.log("Theme from presentation:", data.theme);
+      
       setTitle(data.title);
       setMarkdown(data.content);
-      setSelectedTheme(data.theme?._id || null);
+      
+      // CRITICAL: Properly extract theme ID
+      if (data.theme) {
+        if (typeof data.theme === 'string') {
+          setSelectedTheme(data.theme);
+          console.log("Theme ID (string):", data.theme);
+        } else if (data.theme._id) {
+          setSelectedTheme(data.theme._id);
+          console.log("Theme ID (object):", data.theme._id);
+        }
+      } else {
+        setSelectedTheme(null);
+        console.log("No theme set");
+      }
+      
       setLastSaved(new Date(data.updatedAt));
       setHasUnsavedChanges(false);
     } catch (error: unknown) {
+      console.error("Failed to load presentation:", error);
       toast.error("Failed to load presentation");
       navigate("/dashboard");
     }
@@ -126,31 +139,37 @@ function Editor() {
       return;
     }
 
+    console.log("Saving presentation with theme:", selectedTheme);
+
     setIsSaving(true);
     try {
+      const payload = {
+        title,
+        content: markdown,
+        theme: selectedTheme || null, // CRITICAL: Send theme ID
+      };
+
+      console.log("Save payload:", payload);
+
       if (id) {
         // Update existing
-        await api.put(`/presentations/update-presentation/${id}`, {
-          title,
-          content: markdown,
-          theme: selectedTheme,
-        });
+        const res = await api.put(`/presentations/update-presentation/${id}`, payload);
+        console.log("Update response:", res.data);
       } else {
         // Create new
-        const res = await api.post("/presentations/create-new-presentation", {
-          title,
-          content: markdown,
-          theme: selectedTheme,
-        });
+        const res = await api.post("/presentations/create-new-presentation", payload);
+        console.log("Create response:", res.data);
         navigate(`/editor/${res.data.data._id}`, { replace: true });
       }
 
       setLastSaved(new Date());
       setHasUnsavedChanges(false);
+      
       if (!isAutoSave) {
         toast.success("Presentation saved successfully");
       }
     } catch (error: any) {
+      console.error("Save error:", error);
       toast.error("Failed to save presentation");
     } finally {
       setIsSaving(false);
@@ -164,28 +183,33 @@ function Editor() {
     }
 
     try {
-      toast.loading(`Exporting as ${format.toUpperCase()}...`);
+      const toastId = toast.loading(`Exporting as ${format.toUpperCase()}...`);
       
       const response = await api.get(`/presentations/export/${id}?format=${format}`, {
         responseType: format === "pdf" ? "blob" : "text",
       });
+
+      console.log("Export response received");
 
       const url = window.URL.createObjectURL(
         new Blob([response.data], {
           type: format === "pdf" ? "application/pdf" : "text/html",
         })
       );
+      
       const link = document.createElement("a");
       link.href = url;
       link.setAttribute("download", `${title}.${format}`);
       document.body.appendChild(link);
       link.click();
       link.remove();
+      
+      window.URL.revokeObjectURL(url);
 
-      toast.dismiss();
+      toast.dismiss(toastId);
       toast.success(`Exported successfully as ${format.toUpperCase()}`);
     } catch (error: any) {
-      toast.dismiss();
+      console.error("Export error:", error);
       toast.error(`Failed to export as ${format.toUpperCase()}`);
     }
   };
@@ -211,7 +235,7 @@ function Editor() {
       setShowAIDialog(false);
       toast.success("Slides generated successfully!");
     } catch (error: any) {
-      const errorMessage = error.response?.data?.message || "Failed to generate slides. Please check your Hugging Face API key.";
+      const errorMessage = error.response?.data?.message || "Failed to generate slides";
       toast.error(errorMessage);
     } finally {
       setAiGenerating(false);
@@ -224,7 +248,7 @@ function Editor() {
       return;
     }
 
-    toast.loading("Improving slides with AI...");
+    const toastId = toast.loading("Improving slides with AI...");
     try {
       const response = await api.post("/ai/improve-slides", {
         content: markdown,
@@ -232,10 +256,10 @@ function Editor() {
 
       setMarkdown(response.data.data.content);
       setHasUnsavedChanges(true);
-      toast.dismiss();
+      toast.dismiss(toastId);
       toast.success("Slides improved!");
     } catch (error: any) {
-      toast.dismiss();
+      toast.dismiss(toastId);
       toast.error("Failed to improve slides");
     }
   };
@@ -258,13 +282,18 @@ function Editor() {
     setHasUnsavedChanges(true);
   }, []);
 
+  const handleThemeChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const themeId = e.target.value || null;
+    console.log("Theme selected:", themeId);
+    setSelectedTheme(themeId);
+    setHasUnsavedChanges(true);
+  };
+
   const toggleFullscreen = () => {
     if (!document.fullscreenElement) {
       document.documentElement.requestFullscreen();
-      setIsFullscreen(true);
     } else {
       document.exitFullscreen();
-      setIsFullscreen(false);
     }
   };
 
@@ -299,7 +328,6 @@ function Editor() {
         </div>
 
         <div className="flex items-center gap-2">
-          {/* Dark Mode Toggle */}
           <Button
             variant="ghost"
             size="icon"
@@ -312,37 +340,25 @@ function Editor() {
           {/* Theme Selector */}
           <select
             value={selectedTheme || ""}
-            onChange={(e) => {
-              setSelectedTheme(e.target.value || null);
-              setHasUnsavedChanges(true);
-            }}
-            className="px-3 py-2 border rounded-md text-sm bg-background"
+            onChange={handleThemeChange}
+            className="px-3 py-2 border rounded-md text-sm bg-background text-foreground"
           >
             <option value="">Default Theme</option>
-            {themes.map((theme) => (
-              <option key={theme._id} value={theme._id}>
-                {theme.name}
+            {themes.map((t) => (
+              <option key={t._id} value={t._id}>
+                {t.name}
               </option>
             ))}
           </select>
 
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => setShowPreview(!showPreview)}
-          >
+          <Button variant="outline" size="sm" onClick={() => setShowPreview(!showPreview)}>
             {showPreview ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
           </Button>
 
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={toggleFullscreen}
-          >
+          <Button variant="outline" size="sm" onClick={toggleFullscreen}>
             <Maximize2 className="w-4 h-4" />
           </Button>
 
-          {/* AI Generate Dialog */}
           <Dialog open={showAIDialog} onOpenChange={setShowAIDialog}>
             <DialogTrigger asChild>
               <Button variant="outline" size="sm" className="gap-2">
@@ -416,44 +432,23 @@ function Editor() {
                     </>
                   )}
                 </Button>
-
-                <p className="text-xs text-muted-foreground">
-                  Note: Requires Hugging Face API key configured in backend
-                </p>
               </div>
             </DialogContent>
           </Dialog>
 
-          {/* AI Improve */}
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={handleAIImprove}
-            className="gap-2"
-          >
+          <Button variant="outline" size="sm" onClick={handleAIImprove} className="gap-2">
             <Wand2 className="w-4 h-4" />
             AI Improve
           </Button>
 
-          {/* Presentation Mode */}
           {id && (
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={handlePresentationMode}
-              className="gap-2"
-            >
+            <Button variant="outline" size="sm" onClick={handlePresentationMode} className="gap-2">
               <Presentation className="w-4 h-4" />
               Present
             </Button>
           )}
 
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => handleSave(false)}
-            disabled={isSaving}
-          >
+          <Button variant="outline" size="sm" onClick={() => handleSave(false)} disabled={isSaving}>
             <Save className="w-4 h-4 mr-2" />
             {isSaving ? "Saving..." : "Save"}
           </Button>
@@ -494,12 +489,10 @@ function Editor() {
 
       {/* Editor & Preview */}
       <div className="flex-1 flex overflow-hidden">
-        {/* Markdown Editor */}
         <div className={showPreview ? "w-1/2 border-r" : "w-full"}>
           <MarkdownEditor value={markdown} onChange={handleContentChange} />
         </div>
 
-        {/* Live Preview */}
         {showPreview && (
           <div className="w-1/2">
             <SlidePreview markdown={markdown} />
