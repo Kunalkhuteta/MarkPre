@@ -524,115 +524,121 @@ const Docs = () => {
       </div>
     ),
 
-    cli: (
-      <div className="space-y-6">
-        <h1 className="text-4xl font-bold">CLI Tool</h1>
-        <p className="text-lg text-muted-foreground">
-          Manage presentations from your terminal with the MarkPre CLI.
+    // Replace the `cli:` section inside content{} in Docs.tsx with this:
+
+cli: (
+  <div className="space-y-6">
+    <h1 className="text-4xl font-bold">CLI Tool</h1>
+    <p className="text-lg text-muted-foreground">
+      Manage presentations from your terminal with the MarkPre CLI — no browser needed.
+    </p>
+
+    <Card className="border-amber-300 dark:border-amber-700 bg-amber-50 dark:bg-amber-950/40">
+      <CardHeader>
+        <CardTitle className="text-amber-700 dark:text-amber-400 text-base">⚠️ First Request May Be Slow</CardTitle>
+      </CardHeader>
+      <CardContent>
+        <p className="text-sm text-amber-700 dark:text-amber-500">
+          The server runs on Render's free tier and sleeps after 15 minutes of inactivity.
+          Your first command may take <strong>30–60 seconds</strong>. If it times out, just wait and try again.
         </p>
+      </CardContent>
+    </Card>
 
-        <Card>
-          <CardHeader>
-            <CardTitle>Installation</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <code className="block bg-muted p-4 rounded font-mono text-sm">
-              cd cli<br/>
-              pip install -r requirements.txt<br/>
-              chmod +x markpre.py
-            </code>
-          </CardContent>
-        </Card>
+    <Card>
+      <CardHeader>
+        <CardTitle>Installation</CardTitle>
+        <CardDescription>Requires Python 3.8+</CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-3">
+        <code className="block bg-zinc-950 text-green-400 p-4 rounded font-mono text-sm">
+          pip install markpre
+        </code>
+        <p className="text-sm text-muted-foreground">
+          After install, the <code className="bg-muted px-1 rounded">markpre</code> command works anywhere in your terminal.
+        </p>
+        <code className="block bg-zinc-950 text-green-400 p-4 rounded font-mono text-sm">
+          pip install --upgrade markpre
+        </code>
+        <p className="text-sm text-muted-foreground">Run the above to update to the latest version.</p>
+      </CardContent>
+    </Card>
 
-        <Card>
-          <CardHeader>
-            <CardTitle>Commands</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-6">
-            <div>
-              <p className="font-medium mb-2">Login:</p>
-              <code className="block bg-muted p-4 rounded font-mono text-sm">
-                python markpre.py login --email your-email@gmail.com --password your-password
-              </code>
-            </div>
+    <Card>
+      <CardHeader><CardTitle>Commands</CardTitle></CardHeader>
+      <CardContent className="space-y-5">
+        {[
+          {
+            label: "Login:",
+            code: "markpre login --email your@email.com --password yourpassword",
+            note: "Token saved to ~/.markpre_config.json — stay logged in across sessions.",
+          },
+          {
+            label: "Check Status:",
+            code: "markpre status",
+            note: "Shows login status and whether the server is reachable.",
+          },
+          {
+            label: "List Presentations:",
+            code: "markpre presentation list",
+            note: "Shows all presentations with IDs, slide counts, and dates.",
+          },
+          {
+            label: "Upload Markdown File:",
+            code: 'markpre presentation add -t "My Talk" -m ./slides.md',
+            note: "Slides are separated by --- in your markdown file.",
+          },
+          {
+            label: "Export as PDF:",
+            code: "markpre presentation export PRESENTATION_ID -f pdf -o my-talk.pdf",
+            note: "Replace PRESENTATION_ID with the ID from the list command.",
+          },
+          {
+            label: "Export as HTML:",
+            code: "markpre presentation export PRESENTATION_ID -f html -o my-talk.html",
+          },
+          {
+            label: "Delete Presentation:",
+            code: "markpre presentation delete PRESENTATION_ID",
+            note: "You'll be asked to confirm before deletion.",
+          },
+          {
+            label: "Logout:",
+            code: "markpre logout",
+          },
+        ].map(({ label, code, note }) => (
+          <div key={label}>
+            <p className="font-medium mb-1.5 text-sm">{label}</p>
+            <code className="block bg-zinc-950 text-green-400 p-3 rounded font-mono text-sm">{code}</code>
+            {note && <p className="text-xs text-muted-foreground mt-1.5">{note}</p>}
+          </div>
+        ))}
+      </CardContent>
+    </Card>
 
-            <div>
-              <p className="font-medium mb-2">Upload Markdown File:</p>
-              <code className="block bg-muted p-4 rounded font-mono text-sm">
-                python markpre.py presentation add -t "My Presentation" -m ./slides.md
-              </code>
-              <p className="text-sm text-muted-foreground mt-2">
-                This will upload your local Markdown file directly to MarkPre
-              </p>
-            </div>
+    <Card>
+      <CardHeader><CardTitle>Windows — Export to Downloads</CardTitle></CardHeader>
+      <CardContent>
+        <code className="block bg-zinc-950 text-green-400 p-4 rounded font-mono text-sm whitespace-pre">
+{`$dt = "$env:USERPROFILE\\Downloads"
+markpre presentation export PRESENTATION_ID -f pdf -o "$dt\\MyTalk.pdf"`}
+        </code>
+      </CardContent>
+    </Card>
 
-            <div>
-              <p className="font-medium mb-2">List Presentations:</p>
-              <code className="block bg-muted p-4 rounded font-mono text-sm">
-                python markpre.py presentation list
-              </code>
-              <p className="text-sm text-muted-foreground mt-2">
-                Shows all your presentations with their IDs
-              </p>
-            </div>
-
-            <div>
-              <p className="font-medium mb-2">Export Presentation:</p>
-              <code className="block bg-muted p-4 rounded font-mono text-sm">
-                $dt = 'C:\Users\Welcome\Downloads' # Set your download path<br/>
-                python markpre.py presentation export PRESENTATION_ID -f pdf -o "$dt\MarkPre.pdf"
-              </code>
-              <p className="text-sm text-muted-foreground mt-2">
-                Replace PRESENTATION_ID with the ID from the list command
-              </p>
-            </div>
-
-            <div>
-              <p className="font-medium mb-2">Check Status:</p>
-              <code className="block bg-muted p-4 rounded font-mono text-sm">
-                python markpre.py status
-              </code>
-            </div>
-
-            <div>
-              <p className="font-medium mb-2">Logout:</p>
-              <code className="block bg-muted p-4 rounded font-mono text-sm">
-                python markpre.py logout
-              </code>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle>Features</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <ul className="list-disc list-inside space-y-2">
-              <li>Colored terminal output with Rich library</li>
-              <li>Progress indicators for long operations</li>
-              <li>Comprehensive error handling</li>
-              <li>Token-based authentication (stored in ~/.markpre_config.json)</li>
-              <li>Batch operations support</li>
-            </ul>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle>Tips</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <ul className="list-disc list-inside space-y-2">
-              <li>Your credentials are stored securely after login</li>
-              <li>Use the list command to get presentation IDs for export</li>
-              <li>Export paths can use environment variables</li>
-              <li>The CLI uses the same API as the web interface</li>
-            </ul>
-          </CardContent>
-        </Card>
-      </div>
-    ),
+    <Card>
+      <CardHeader><CardTitle>Tips</CardTitle></CardHeader>
+      <CardContent>
+        <ul className="list-disc list-inside space-y-2 text-sm">
+          <li>Token is saved after login — no need to log in every time</li>
+          <li>Run <code className="bg-muted px-1 rounded">markpre presentation list</code> to get IDs before exporting</li>
+          <li>Set <code className="bg-muted px-1 rounded">MARKPRE_API_URL</code> env variable to use your own backend</li>
+          <li>If a command times out, the server is waking up — wait 30s and retry</li>
+        </ul>
+      </CardContent>
+    </Card>
+  </div>
+),
   };
 
   return (

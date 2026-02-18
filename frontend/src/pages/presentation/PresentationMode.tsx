@@ -398,7 +398,7 @@ const renderMarkdown = (text: string) => {
       {/* Keyboard Shortcuts Hint */}
       <div
         className={`
-          fixed top-4 right-4 bg-background/95 backdrop-blur border-2 px-4 py-3 rounded-lg text-xs
+          fixed top-20 right-4 bg-background/95 backdrop-blur border-2 px-4 py-3 rounded-lg text-xs
           transition-opacity duration-300
           ${showControls ? "opacity-100" : "opacity-0"}
         `}
