@@ -2,8 +2,8 @@
 
 > Write Markdown. Get beautiful presentations. Instantly.
 
-🌐 **Live:** [markpre.vercel.app](https://markpre.vercel.app)
-📦 **Repo:** [github.com/Kunalkhuteta/MarkPre](https://github.com/Kunalkhuteta/MarkPre)
+ **Live:** [markpre.vercel.app](https://markpre.vercel.app)
+ **Repo:** [github.com/Kunalkhuteta/MarkPre](https://github.com/Kunalkhuteta/MarkPre)
 
 ---
 
@@ -135,7 +135,7 @@ frontend/
 
 ## Key Features
 
-### 🔐 Authentication & Routing
+###  Authentication & Routing
 
 **`ProtectedRoute.tsx`** — Wraps all authenticated pages. If the user is not logged in (checked via Redux `isAuthenticated`), redirects to `/login`.
 
@@ -153,7 +153,7 @@ frontend/
 
 ---
 
-### ✍️ Editor (`/editor/:id`)
+###  Editor (`/editor/:id`)
 
 - Split-panel: Markdown editor left, live slide preview right
 - Toggle preview on/off (`Ctrl+P`)
@@ -168,7 +168,7 @@ frontend/
 
 ---
 
-### 🤖 AI Features
+###  AI Features
 
 Accessed via toolbar buttons in the Editor:
 
@@ -177,7 +177,7 @@ Accessed via toolbar buttons in the Editor:
 
 ---
 
-### 🎞️ Presentation Mode (`/present/:id`)
+###  Presentation Mode (`/present/:id`)
 
 - Full-screen slide renderer with custom theme colors + fonts
 - Slides parsed from `content.split("---")`
@@ -190,7 +190,7 @@ Accessed via toolbar buttons in the Editor:
 
 ---
 
-### 🎨 Themes (`/themes`)
+###  Themes (`/themes`)
 
 - Create themes: name, description, primary color, background color, text color, font family
 - Color pickers with hex value display
@@ -200,7 +200,7 @@ Accessed via toolbar buttons in the Editor:
 
 ---
 
-### 🖼️ Assets (`/assets`)
+###  Assets (`/assets`)
 
 - Upload images (JPEG, PNG, GIF, WebP, SVG — max 5MB) — validated by type and size before upload
 - Stats bar: total assets, total storage used, uploads this week
@@ -210,7 +210,7 @@ Accessed via toolbar buttons in the Editor:
 
 ---
 
-### 📊 Dashboard (`/dashboard`)
+###  Dashboard (`/dashboard`)
 
 - Stats: total presentations, slides, words, views — aggregated client-side from API data
 - Per card: View (`/presentation/:id`), Edit (`/editor/:id`), Export PDF, Export HTML
@@ -219,7 +219,7 @@ Accessed via toolbar buttons in the Editor:
 
 ---
 
-### 📖 Docs & CLI Pages
+###  Docs & CLI Pages
 
 **`Docs.tsx`** — Sidebar-driven documentation with sections: Introduction, Getting Started, Markdown Syntax, Themes & Styling, AI Features, Presentation Mode, Export Options, Keyboard Shortcuts, CLI Tool.
 
