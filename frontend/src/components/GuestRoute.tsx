@@ -1,11 +1,10 @@
 import { useSelector } from "react-redux";
-import { Navigate } from "react-router-dom";
-import { Outlet } from "react-router-dom";
+import { Navigate, Outlet } from "react-router-dom";
 import type { RootState } from "../app/store";
 import { Loader2 } from "lucide-react";
 
 export default function GuestRoute() {
-  const { isLoggedIn, isEmailVerified, loading } = useSelector(
+  const { isLoggedIn, isEmailVerified, requiresVerification, loading } = useSelector(
     (state: RootState) => state.auth
   );
 
@@ -20,13 +19,9 @@ export default function GuestRoute() {
     );
   }
 
-  if (isLoggedIn && !isEmailVerified) {
-    return <Navigate to="/verify-email" replace />;
-  }
-
-  if (isLoggedIn) {
-    return <Navigate to="/dashboard" replace />;
-  }
+  if (requiresVerification) return <Navigate to="/verify-email" replace />;
+  if (isLoggedIn && !isEmailVerified) return <Navigate to="/verify-email" replace />;
+  if (isLoggedIn && isEmailVerified) return <Navigate to="/dashboard" replace />;
 
   return <Outlet />;
 }

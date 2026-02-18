@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { api } from "@/lib/apiClient";
 import { Moon, Sun, Sparkles, LogOut } from "lucide-react";
 import { useTheme } from "@/components/theme-provider";
+import { ImageIcon } from "lucide-react";
 
 function Header() {
   const location = useLocation();
@@ -59,6 +60,13 @@ function Header() {
               </Link>
             ))}
           </nav>
+          <Link 
+  to="/assets" 
+  className="flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-accent"
+>
+  <ImageIcon className="w-5 h-5" />
+  <span>Assets</span>
+</Link>
 
           {/* Divider */}
           <div className="hidden md:block w-px h-6 bg-border mx-2" />

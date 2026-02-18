@@ -1,11 +1,10 @@
 import { useSelector } from "react-redux";
-import { Navigate } from "react-router-dom";
+import { Navigate, Outlet } from "react-router-dom";
 import type { RootState } from "../app/store";
-import { Outlet } from "react-router-dom";
 import { Loader2 } from "lucide-react";
 
 export default function ProtectedRoute() {
-  const { isLoggedIn, isEmailVerified, loading } = useSelector(
+  const { isLoggedIn, isEmailVerified, requiresVerification, loading } = useSelector(
     (state: RootState) => state.auth
   );
 
@@ -18,6 +17,11 @@ export default function ProtectedRoute() {
         </div>
       </div>
     );
+  }
+
+  // ✅ In verification flow - let them through to /verify-email
+  if (requiresVerification) {
+    return <Navigate to="/verify-email" replace />;
   }
 
   if (!isLoggedIn) {

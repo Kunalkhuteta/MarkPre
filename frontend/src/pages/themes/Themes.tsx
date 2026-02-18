@@ -143,182 +143,148 @@ const Themes: React.FC = () => {
     );
   }
 
-  return (
-    <div className="p-6">
-      {/* Header */}
-      <div className="flex items-center justify-between mb-6">
-        <h1 className="text-2xl font-semibold">My Themes</h1>
+ return (
+  <div className="p-6 min-h-screen bg-background">
+    {/* Header */}
+    <div className="flex items-center justify-between mb-6">
+      <h1 className="text-2xl font-semibold text-foreground">My Themes</h1>
 
-        <Dialog open={openDialog} onOpenChange={setOpenDialog}>
-          <DialogTrigger asChild>
-            <Button
-              className="gap-2"
-              onClick={() => {
-                resetForm();
-                setOpenDialog(true);
-              }}
-            >
-              <Plus className="w-4 h-4" /> Add New Theme
-            </Button>
-          </DialogTrigger>
-
-          <DialogContent
-            className="max-w-2xl p-6 rounded-xl"
-            style={{
-              width: "90vw",
-              maxWidth: "600px",
+      <Dialog open={openDialog} onOpenChange={setOpenDialog}>
+        <DialogTrigger asChild>
+          <Button
+            className="gap-2"
+            onClick={() => {
+              resetForm();
+              setOpenDialog(true);
             }}
           >
-            <DialogHeader>
-              <DialogTitle className="text-xl font-semibold">
-                {editMode ? "Edit Theme" : "Create New Theme"}
-              </DialogTitle>
-            </DialogHeader>
+            <Plus className="w-4 h-4" /> Add New Theme
+          </Button>
+        </DialogTrigger>
 
-            <div className="space-y-4 mt-4">
-              <Input
-                placeholder="Theme Name"
-                value={formData.name}
-                onChange={(e) =>
-                  setFormData({ ...formData, name: e.target.value })
-                }
-              />
-              <Textarea
-                placeholder="Theme Description"
-                value={formData.description}
-                onChange={(e) =>
-                  setFormData({ ...formData, description: e.target.value })
-                }
-              />
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle className="text-xl font-semibold">
+              {editMode ? "Edit Theme" : "Create New Theme"}
+            </DialogTitle>
+          </DialogHeader>
 
-              <div className="grid grid-cols-3 gap-4">
-                <div>
-                  <label className="text-sm text-gray-600">Primary Color</label>
-                  <Input
-                    type="color"
-                    value={formData.primaryColor}
-                    onChange={(e) =>
-                      setFormData({
-                        ...formData,
-                        primaryColor: e.target.value,
-                      })
-                    }
-                  />
-                </div>
-                <div>
-                  <label className="text-sm text-gray-600">
-                    Background Color
-                  </label>
-                  <Input
-                    type="color"
-                    value={formData.backgroundColor}
-                    onChange={(e) =>
-                      setFormData({
-                        ...formData,
-                        backgroundColor: e.target.value,
-                      })
-                    }
-                  />
-                </div>
-                <div>
-                  <label className="text-sm text-gray-600">Text Color</label>
-                  <Input
-                    type="color"
-                    value={formData.textColor}
-                    onChange={(e) =>
-                      setFormData({ ...formData, textColor: e.target.value })
-                    }
-                  />
-                </div>
+          <div className="space-y-4 mt-4">
+            <Input
+              placeholder="Theme Name"
+              value={formData.name}
+              onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+            />
+            <Textarea
+              placeholder="Theme Description"
+              value={formData.description}
+              onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+            />
+
+            <div className="grid grid-cols-3 gap-4">
+              <div>
+                <label className="text-sm font-medium text-foreground mb-2 block">Primary Color</label>
+                <Input
+                  type="color"
+                  value={formData.primaryColor}
+                  onChange={(e) => setFormData({ ...formData, primaryColor: e.target.value })}
+                />
               </div>
-
-              <Input
-                placeholder="Font Family (e.g. Inter, sans-serif)"
-                value={formData.fontFamily}
-                onChange={(e) =>
-                  setFormData({ ...formData, fontFamily: e.target.value })
-                }
-              />
-
-              <div className="flex justify-end pt-4">
-                <Button
-                  onClick={handleSaveTheme}
-                  disabled={creating}
-                  className="gap-2"
-                >
-                  {creating ? (
-                    <>
-                      <Loader2 className="w-4 h-4 animate-spin" />{" "}
-                      {editMode ? "Saving..." : "Creating..."}
-                    </>
-                  ) : editMode ? (
-                    "Save Changes"
-                  ) : (
-                    "Create Theme"
-                  )}
-                </Button>
+              <div>
+                <label className="text-sm font-medium text-foreground mb-2 block">Background Color</label>
+                <Input
+                  type="color"
+                  value={formData.backgroundColor}
+                  onChange={(e) => setFormData({ ...formData, backgroundColor: e.target.value })}
+                />
+              </div>
+              <div>
+                <label className="text-sm font-medium text-foreground mb-2 block">Text Color</label>
+                <Input
+                  type="color"
+                  value={formData.textColor}
+                  onChange={(e) => setFormData({ ...formData, textColor: e.target.value })}
+                />
               </div>
             </div>
-          </DialogContent>
-        </Dialog>
-      </div>
 
-      {/* Themes Grid */}
-      {themes.length === 0 ? (
-        <p className="text-center text-gray-500 mt-10">You haven't created any themes yet.</p>
-      ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-          {themes.map((theme) => (
-            <Card
-              key={theme._id}
-              className="hover:shadow-lg transition-all duration-200"
-            >
-              <CardHeader>
-                <CardTitle style={{ fontFamily: theme.fontFamily }}>
-                  {theme.name}
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p className="text-sm text-gray-500 mb-4">
-                  {theme.description}
-                </p>
-                <div className="flex gap-2">
-                  <div
-                    className="w-8 h-8 rounded border"
-                    style={{ backgroundColor: theme.primaryColor }}
-                  />
-                  <div
-                    className="w-8 h-8 rounded border"
-                    style={{ backgroundColor: theme.backgroundColor }}
-                  />
-                  <div
-                    className="w-8 h-8 rounded border"
-                    style={{ backgroundColor: theme.textColor }}
-                  />
-                </div>
-              </CardContent>
-              <CardFooter className="flex justify-end gap-2">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => openEditDialog(theme)}
-                >
-                  <Pencil className="w-4 h-4 mr-1" /> Edit
-                </Button>
-                <Button
-                  variant="destructive"
-                  size="sm"
-                  onClick={() => handleDeleteTheme(theme._id)}
-                >
-                  <Trash2 className="w-4 h-4 mr-1" /> Delete
-                </Button>
-              </CardFooter>
-            </Card>
-          ))}
-        </div>
-      )}
+            <Input
+              placeholder="Font Family (e.g. Inter, sans-serif)"
+              value={formData.fontFamily}
+              onChange={(e) => setFormData({ ...formData, fontFamily: e.target.value })}
+            />
+
+            <div className="flex justify-end pt-4">
+              <Button onClick={handleSaveTheme} disabled={creating} className="gap-2">
+                {creating ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    {editMode ? "Saving..." : "Creating..."}
+                  </>
+                ) : editMode ? (
+                  "Save Changes"
+                ) : (
+                  "Create Theme"
+                )}
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
-  );
+
+    {/* Themes Grid */}
+    {themes.length === 0 ? (
+      <Card className="border-2 border-dashed">
+        <CardContent className="py-12 text-center">
+          <p className="text-muted-foreground">You haven't created any themes yet.</p>
+        </CardContent>
+      </Card>
+    ) : (
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+        {themes.map((theme) => (
+          <Card key={theme._id} className="hover:shadow-lg transition-all duration-200 bg-card">
+            <CardHeader>
+              <CardTitle className="text-foreground" style={{ fontFamily: theme.fontFamily }}>
+                {theme.name}
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="text-sm text-muted-foreground mb-4">
+                {theme.description}
+              </p>
+              <div className="flex gap-2">
+                <div
+                  className="w-10 h-10 rounded-lg border-2 border-border shadow-sm"
+                  style={{ backgroundColor: theme.primaryColor }}
+                  title={`Primary: ${theme.primaryColor}`}
+                />
+                <div
+                  className="w-10 h-10 rounded-lg border-2 border-border shadow-sm"
+                  style={{ backgroundColor: theme.backgroundColor }}
+                  title={`Background: ${theme.backgroundColor}`}
+                />
+                <div
+                  className="w-10 h-10 rounded-lg border-2 border-border shadow-sm"
+                  style={{ backgroundColor: theme.textColor }}
+                  title={`Text: ${theme.textColor}`}
+                />
+              </div>
+            </CardContent>
+            <CardFooter className="flex justify-end gap-2">
+              <Button variant="outline" size="sm" onClick={() => openEditDialog(theme)}>
+                <Pencil className="w-4 h-4 mr-1" /> Edit
+              </Button>
+              <Button variant="destructive" size="sm" onClick={() => handleDeleteTheme(theme._id)}>
+                <Trash2 className="w-4 h-4 mr-1" /> Delete
+              </Button>
+            </CardFooter>
+          </Card>
+        ))}
+      </div>
+    )}
+  </div>
+);
 };
 
 export default Themes;

@@ -1,10 +1,9 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, type JSX } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { api } from "@/lib/apiClient";
 import { Button } from "@/components/ui/button";
 import { ChevronLeft, ChevronRight, X, Maximize, Grid3x3, Moon, Sun } from "lucide-react";
-import { marked } from "marked";
 import { useTheme } from "@/components/theme-provider";
 
 interface Theme {
@@ -152,13 +151,64 @@ const PresentationMode = () => {
     setAppTheme(appTheme === "dark" ? "light" : "dark");
   };
 
-  const renderMarkdown = (text: string) => {
-    const html = marked(text.trim(), {
-      breaks: true,
-      gfm: true,
-    }) as string;
-    return { __html: html };
-  };
+  // ✅ REPLACE the renderMarkdown function in PresentationMode.tsx with this:
+
+const renderMarkdown = (text: string) => {
+  const lines = text.trim().split("\n");
+  const elements: JSX.Element[] = [];
+
+  lines.forEach((line, i) => {
+    // ✅ Image: ![alt](url)
+    const imageMatch = line.match(/^!\[(.*?)\]\((.*?)\)$/);
+    if (imageMatch) {
+      const [, alt, url] = imageMatch;
+      elements.push(
+        <div key={i} className="flex justify-center my-8">
+          <img
+            src={url}
+            alt={alt}
+            className="max-w-full max-h-[600px] rounded-xl shadow-2xl object-contain"
+          />
+        </div>
+      );
+      return;
+    }
+
+    if (line.startsWith("# ")) {
+      elements.push(
+        <h1 key={i} className="text-6xl font-bold mb-8">
+          {line.slice(2)}
+        </h1>
+      );
+    } else if (line.startsWith("## ")) {
+      elements.push(
+        <h2 key={i} className="text-5xl font-semibold mb-6">
+          {line.slice(3)}
+        </h2>
+      );
+    } else if (line.startsWith("### ")) {
+      elements.push(
+        <h3 key={i} className="text-4xl font-semibold mb-4">
+          {line.slice(4)}
+        </h3>
+      );
+    } else if (line.startsWith("- ")) {
+      elements.push(
+        <li key={i} className="text-2xl mb-3 list-disc ml-10">
+          {line.slice(2)}
+        </li>
+      );
+    } else if (line.trim()) {
+      elements.push(
+        <p key={i} className="text-2xl mb-6">
+          {line}
+        </p>
+      );
+    }
+  });
+
+  return <>{elements}</>;
+};
 
   const progress = ((currentSlide + 1) / slides.length) * 100;
 
@@ -177,11 +227,7 @@ const PresentationMode = () => {
       : { backgroundColor: "#ffffff", color: "#1e293b", fontFamily: "Inter, sans-serif" };
   };
 
-  const getContainerBackground = () => {
-    if (appTheme === "dark") return "#0f172a";
-    if (presentationTheme?.backgroundColor) return presentationTheme.backgroundColor;
-    return "#f9fafb";
-  };
+  
 
   if (!presentation) {
     return (
@@ -221,8 +267,7 @@ const PresentationMode = () => {
                 }}
               >
                 <div className="aspect-video flex items-center justify-center text-xs overflow-hidden">
-                  <div dangerouslySetInnerHTML={renderMarkdown(slide.substring(0, 100) + "...")} />
-                </div>
+<div>{renderMarkdown(slide.substring(0, 100) + "...")}</div>                </div>
                 <div className="text-center mt-2 text-sm font-medium">
                   Slide {index + 1}
                 </div>
@@ -236,10 +281,10 @@ const PresentationMode = () => {
 
   const themeStyles = getThemeStyles();
 
-  return (
+ return (
     <div
       className="fixed inset-0 flex flex-col"
-      style={{ backgroundColor: getContainerBackground() }}
+      style={{ backgroundColor: appTheme === "dark" ? "#0f172a" : "#f1f5f9" }}
     >
       {/* Main Slide Area */}
       <div className="flex-1 flex items-center justify-center p-12">
@@ -248,11 +293,12 @@ const PresentationMode = () => {
           style={themeStyles}
         >
           <div
-            className="prose prose-lg max-w-none overflow-auto w-full h-full"
-            style={{ color: themeStyles.color }}
-            dangerouslySetInnerHTML={renderMarkdown(slides[currentSlide] || "")}
-          />
-        </div>
+  className="prose prose-lg max-w-none overflow-auto w-full h-full"
+  style={{ color: themeStyles.color }}
+>
+  {renderMarkdown(slides[currentSlide] || "")}
+</div>
+      </div>
       </div>
 
       {/* Controls Overlay */}
@@ -270,12 +316,12 @@ const PresentationMode = () => {
               size="icon"
               onClick={prevSlide}
               disabled={currentSlide === 0}
-              className="rounded-full"
+              className="rounded-full bg-background/95 backdrop-blur border-2 hover:bg-background"
             >
-              <ChevronLeft className="w-6 h-6" />
+              <ChevronLeft className="w-6 h-6 text-foreground" />
             </Button>
 
-            <div className="bg-background/95 backdrop-blur px-4 py-2 rounded-full text-sm font-medium">
+            <div className="bg-background/95 backdrop-blur border-2 px-4 py-2 rounded-full text-sm font-medium text-foreground">
               {currentSlide + 1} / {slides.length}
             </div>
 
@@ -284,9 +330,9 @@ const PresentationMode = () => {
               size="icon"
               onClick={nextSlide}
               disabled={currentSlide >= slides.length - 1}
-              className="rounded-full"
+              className="rounded-full bg-background/95 backdrop-blur border-2 hover:bg-background"
             >
-              <ChevronRight className="w-6 h-6" />
+              <ChevronRight className="w-6 h-6 text-foreground" />
             </Button>
           </div>
 
@@ -296,47 +342,51 @@ const PresentationMode = () => {
               variant="secondary"
               size="icon"
               onClick={() => setShowOverview(true)}
-              className="rounded-full"
+              className="rounded-full bg-background/95 backdrop-blur border-2 hover:bg-background"
               title="Grid overview (G)"
             >
-              <Grid3x3 className="w-4 h-4" />
+              <Grid3x3 className="w-4 h-4 text-foreground" />
             </Button>
 
             <Button
               variant="secondary"
               size="icon"
               onClick={toggleDarkMode}
-              className="rounded-full"
+              className="rounded-full bg-background/95 backdrop-blur border-2 hover:bg-background"
               title="Toggle dark mode"
             >
-              {appTheme === "dark" ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
+              {appTheme === "dark" ? (
+                <Sun className="w-4 h-4 text-foreground" />
+              ) : (
+                <Moon className="w-4 h-4 text-foreground" />
+              )}
             </Button>
 
             <Button
               variant="secondary"
               size="icon"
               onClick={toggleFullscreen}
-              className="rounded-full"
+              className="rounded-full bg-background/95 backdrop-blur border-2 hover:bg-background"
               title="Fullscreen (F)"
             >
-              <Maximize className="w-4 h-4" />
+              <Maximize className="w-4 h-4 text-foreground" />
             </Button>
 
             <Button
               variant="secondary"
               size="icon"
               onClick={() => navigate(`/editor/${id}`)}
-              className="rounded-full"
+              className="rounded-full bg-background/95 backdrop-blur border-2 hover:bg-background"
               title="Exit (Esc)"
             >
-              <X className="w-4 h-4" />
+              <X className="w-4 h-4 text-foreground" />
             </Button>
           </div>
         </div>
 
         {/* Progress Bar */}
         <div className="max-w-4xl mx-auto mt-4">
-          <div className="h-1 bg-background/30 rounded-full overflow-hidden">
+          <div className="h-1.5 bg-background/30 rounded-full overflow-hidden">
             <div
               className="h-full bg-primary transition-all duration-300"
               style={{ width: `${progress}%` }}
@@ -348,22 +398,22 @@ const PresentationMode = () => {
       {/* Keyboard Shortcuts Hint */}
       <div
         className={`
-          fixed top-4 right-4 bg-background/95 backdrop-blur px-4 py-2 rounded-lg text-xs
+          fixed top-4 right-4 bg-background/95 backdrop-blur border-2 px-4 py-3 rounded-lg text-xs
           transition-opacity duration-300
           ${showControls ? "opacity-100" : "opacity-0"}
         `}
       >
-        <div className="grid grid-cols-2 gap-x-4 gap-y-1">
-          <span className="text-muted-foreground">→ / Space</span>
-          <span>Next</span>
-          <span className="text-muted-foreground">←</span>
-          <span>Previous</span>
-          <span className="text-muted-foreground">F</span>
-          <span>Fullscreen</span>
-          <span className="text-muted-foreground">G</span>
-          <span>Overview</span>
-          <span className="text-muted-foreground">Esc</span>
-          <span>Exit</span>
+        <div className="grid grid-cols-2 gap-x-4 gap-y-1.5">
+          <span className="text-muted-foreground font-medium">→ / Space</span>
+          <span className="text-foreground">Next</span>
+          <span className="text-muted-foreground font-medium">←</span>
+          <span className="text-foreground">Previous</span>
+          <span className="text-muted-foreground font-medium">F</span>
+          <span className="text-foreground">Fullscreen</span>
+          <span className="text-muted-foreground font-medium">G</span>
+          <span className="text-foreground">Overview</span>
+          <span className="text-muted-foreground font-medium">Esc</span>
+          <span className="text-foreground">Exit</span>
         </div>
       </div>
     </div>

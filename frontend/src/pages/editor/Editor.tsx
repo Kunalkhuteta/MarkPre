@@ -30,6 +30,7 @@ import {
 import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { useTheme } from "@/components/theme-provider";
+import AssetManager from "@/components/AssetManager";
 
 function Editor() {
   const { id } = useParams();
@@ -308,6 +309,15 @@ function Editor() {
             {theme === "dark" ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
           </Button>
 
+          <AssetManager 
+  onSelectAsset={(asset) => {
+    const imageMarkdown = `\n![${asset.name}](${asset.url})\n`;
+    setMarkdown(markdown + imageMarkdown);
+    setHasUnsavedChanges(true);
+    toast.success("Image inserted");
+  }}
+/>
+
           {/* Theme Selector */}
           <select
             value={selectedTheme || ""}
@@ -501,7 +511,7 @@ function Editor() {
         {/* Live Preview */}
         {showPreview && (
           <div className="w-1/2">
-            <SlidePreview markdown={markdown} />
+            <SlidePreview markdown={markdown} themeId={selectedTheme} />
           </div>
         )}
       </div>

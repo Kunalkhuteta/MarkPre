@@ -6,6 +6,7 @@ import cors from "cors";
 import cookieParser from "cookie-parser";
 import connectDB from "./config/db";
 import { createServer } from "http";
+import assetRouter from "./routes/asset.route";
 
 const app = express();
 const server = createServer(app);
@@ -74,6 +75,7 @@ app.use("/api/auth", authRouter);
 app.use("/api/themes", themeRouter);
 app.use("/api/presentations", presentationRouter);
 app.use("/api/ai", aiRouter);
+app.use("/api/assets", assetRouter);
 
 // Health check
 app.get('/', (req, res) => {

@@ -25,7 +25,8 @@ import Themes from './pages/themes/Themes'
 import PresentationViewer from './pages/presentation/PresentationView'
 import CLI from './pages/cli/Cli'
 import Home from './pages/home/Home'
-import { ThemeProvider } from 'next-themes'
+import { ThemeProvider } from './components/theme-provider'
+import Assets from './pages/assets/Assets'
 
 const router = createBrowserRouter(createRoutesFromElements(
   <Route path="/" element={<AppLayout/>}>
@@ -49,6 +50,7 @@ const router = createBrowserRouter(createRoutesFromElements(
       <Route path='/editor' index element={<Editor />} />
       <Route path='/presentation/:id' element={<PresentationViewer/>}></Route>
       <Route path='/themes' element={<Themes/>}/>
+       <Route path='/assets' element={<Assets/>}/>
       <Route path='/docs' element={<Docs />} />
       <Route path='/cli' element={<CLI />} />
       <Route path='/editor/:id' element={<Editor />} />
@@ -64,7 +66,7 @@ async function init() {
   createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <Provider store={store}>
-    <ThemeProvider defaultTheme="system" storageKey="markpre-ui-theme">
+    <ThemeProvider defaultTheme="light" storageKey="markpre-ui-theme">
       <RouterProvider router={router} />
       </ThemeProvider>
     </Provider>

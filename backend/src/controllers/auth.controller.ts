@@ -20,30 +20,29 @@ const registerUser = asyncHandler(async (req: Request, res: Response) => {
 
   const user = await authService.register({ name, email, password } as any);
 
-  // Generate OTP
   const otp = generateSixDigitsOTP();
   const hashedOTP = await bcrypt.hash(otp, 10);
 
   user.emailVerificationToken = hashedOTP;
-  user.emailVerificationTokenExpiry = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
+  user.emailVerificationTokenExpiry = new Date(Date.now() + 10 * 60 * 1000);
   await user.save();
 
-  // Send OTP email
-  try {
-    const otpDigits = otp.split("");
-    const info = await sendMail(user.email, "Verify Your Email - MakeBreak", "email-verification-otp", {
-      name: user.name,
-      otpDigits,
-    });
-    console.log("OTP email sent:", info.messageId);
-    console.log("Preview URL:", info.response || "No preview available");
-  } catch (err) {
-    console.error("Email sending failed:", err);
-    // Registration still succeeds
-  }
+  // ✅ Log OTP BEFORE sending email
+  console.log("=====================================");
+  console.log("🔐 REGISTER OTP");
+  console.log("Email:", email);
+  console.log("OTP:", otp);
+  console.log("=====================================");
+
+  sendMail(user.email, "Verify Your Email - MakeBreak", "email-verification-otp", {
+    name: user.name,
+    otpDigits: otp.split(""),
+  })
+    .then((info) => console.log("✅ Register email sent:", info.messageId))
+    .catch((err) => console.error("❌ Register email failed:", err.message));
 
   res.status(201).json(
-    new ApiResponse(201, "User registered successfully. Please check your email for verification code.", {
+    new ApiResponse(201, "Registered successfully. Please verify your email.", {
       userId: user._id,
       email: user.email,
     })
@@ -56,7 +55,52 @@ const loginUser = asyncHandler(async (req: Request, res: Response) => {
 
   const loginData = await authService.login({ email, password });
 
-  res
+  // ✅ If email not verified - generate OTP and return without cookies
+  if (!loginData.user.isEmailVerified) {
+
+    const otp = generateSixDigitsOTP();
+    const hashedOTP = await bcrypt.hash(otp, 10);
+
+    // ✅ Log OTP FIRST - always visible even if email fails
+    console.log("=====================================");
+    console.log("🔐 LOGIN OTP - EMAIL NOT VERIFIED");
+    console.log("Email:", email);
+    console.log("OTP:", otp);
+    console.log("Time:", new Date().toISOString());
+    console.log("=====================================");
+
+    loginData.user.emailVerificationToken = hashedOTP;
+    loginData.user.emailVerificationTokenExpiry = new Date(Date.now() + 10 * 60 * 1000);
+    await loginData.user.save();
+
+    // ✅ Set cookies so authMiddleware works on /verify-user-email
+    res.cookie("accessToken", loginData.accessToken, cookieOptions);
+    res.cookie("refreshToken", loginData.refreshToken, cookieOptions);
+
+    // Fire and forget - don't block response
+    sendMail(loginData.user.email, "Verify Your Email - MakeBreak", "email-verification-otp", {
+      name: loginData.user.name,
+      otpDigits: otp.split(""),
+    })
+      .then((info) => console.log("✅ Login OTP email sent:", info.messageId))
+      .catch((err) => console.error("❌ Login OTP email failed:", err.message));
+
+    return res.status(200).json(
+      new ApiResponse(200, "Please verify your email to continue.", {
+        user: {
+          id: loginData.user._id,
+          name: loginData.user.name,
+          email: loginData.user.email,
+          isEmailVerified: false,
+        },
+        token: loginData.accessToken,
+        requiresVerification: true,
+      })
+    );
+  }
+
+  // ✅ Email verified - normal login
+  return res
     .status(200)
     .cookie("accessToken", loginData.accessToken, cookieOptions)
     .cookie("refreshToken", loginData.refreshToken, cookieOptions)
@@ -69,6 +113,7 @@ const loginUser = asyncHandler(async (req: Request, res: Response) => {
           isEmailVerified: loginData.user.isEmailVerified,
         },
         token: loginData.accessToken,
+        requiresVerification: false,
       })
     );
 });
@@ -76,7 +121,6 @@ const loginUser = asyncHandler(async (req: Request, res: Response) => {
 // ----------------- LOGOUT USER -----------------
 const logoutUser = asyncHandler(async (req: Request, res: Response) => {
   await authService.logout(req.user.id);
-
   res
     .status(200)
     .clearCookie("accessToken", cookieOptions)
@@ -87,11 +131,9 @@ const logoutUser = asyncHandler(async (req: Request, res: Response) => {
 // ----------------- GET CURRENT USER -----------------
 const getCurrentUser = asyncHandler(async (req: Request, res: Response) => {
   const user = await User.findById(req.user.id).select("-password -refreshToken");
-
   if (!user) {
     return res.status(404).json(new ApiError(404, "User not found"));
   }
-
   res.status(200).json(
     new ApiResponse(200, "Current user fetched successfully", {
       id: user._id,
@@ -114,11 +156,9 @@ const forgotPassword = asyncHandler(async (req: Request, res: Response) => {
 const resetPassword = asyncHandler(async (req: Request, res: Response) => {
   const { token } = req.params;
   const { password } = req.body;
-
   if (!password || password.length < 6) {
     return res.status(400).json(new ApiError(400, "Password must be at least 6 characters long"));
   }
-
   await authService.resetPassword(token, password);
   res.status(200).json(new ApiResponse(200, "Password reset successful"));
 });
@@ -126,47 +166,30 @@ const resetPassword = asyncHandler(async (req: Request, res: Response) => {
 // ----------------- GENERATE EMAIL VERIFICATION OTP -----------------
 const generateEmailVerificationToken = asyncHandler(async (req: Request, res: Response) => {
   const user = await User.findById(req.user.id);
+  if (!user) return res.status(404).json(new ApiError(404, "User not found"));
+  if (user.isEmailVerified) return res.status(400).json(new ApiError(400, "Email already verified"));
 
-  if (!user) {
-    return res.status(404).json(new ApiError(404, "User not found"));
-  }
-
-  if (user.isEmailVerified) {
-    return res.status(400).json(new ApiError(400, "Email already verified"));
-  }
-
-  // Rate limiting - only allow resend every 60 seconds
-  if (user.emailVerificationTokenExpiry && user.emailVerificationTokenExpiry > new Date()) {
-    const secondsRemaining = Math.ceil((user.emailVerificationTokenExpiry.getTime() - Date.now()) / 1000);
-    if (secondsRemaining > 540) {
-      return res.status(429).json(
-        new ApiError(429, `Please wait ${Math.ceil((600 - (600 - secondsRemaining)) / 60)} minute(s) before requesting a new code`)
-      );
-    }
-  }
-
-  // Generate OTP
   const otp = generateSixDigitsOTP();
   const hashedOTP = await bcrypt.hash(otp, 10);
+
+  console.log("=====================================");
+  console.log("🔐 RESEND OTP");
+  console.log("Email:", user.email);
+  console.log("OTP:", otp);
+  console.log("=====================================");
 
   user.emailVerificationToken = hashedOTP;
   user.emailVerificationTokenExpiry = new Date(Date.now() + 10 * 60 * 1000);
   await user.save();
 
-  // Send OTP email
-  try {
-    const otpDigits = otp.split("");
-    const info = await sendMail(user.email, "Verify Your Email - MakeBreak", "email-verification-otp", {
-      name: user.name,
-      otpDigits,
-    });
-    console.log("OTP email sent:", info.messageId);
-    console.log("Preview URL:", info.response || "No preview available");
-    res.status(200).json(new ApiResponse(200, "Verification code sent to your email"));
-  } catch (err) {
-    console.error("Email sending failed:", err);
-    res.status(500).json(new ApiError(500, "Failed to send verification email. Please try again."));
-  }
+  sendMail(user.email, "Verify Your Email - MakeBreak", "email-verification-otp", {
+    name: user.name,
+    otpDigits: otp.split(""),
+  })
+    .then(() => console.log("✅ Resend email sent"))
+    .catch((err) => console.error("❌ Resend email failed:", err.message));
+
+  res.status(200).json(new ApiResponse(200, "Verification code sent to your email"));
 });
 
 // ----------------- VERIFY EMAIL WITH OTP -----------------
@@ -178,14 +201,8 @@ const verifyEmail = asyncHandler(async (req: Request, res: Response) => {
   }
 
   const user = await User.findById(req.user.id);
-
-  if (!user) {
-    return res.status(404).json(new ApiError(404, "User not found"));
-  }
-
-  if (user.isEmailVerified) {
-    return res.status(400).json(new ApiError(400, "Email already verified"));
-  }
+  if (!user) return res.status(404).json(new ApiError(404, "User not found"));
+  if (user.isEmailVerified) return res.status(400).json(new ApiError(400, "Email already verified"));
 
   if (!user.emailVerificationToken || !user.emailVerificationTokenExpiry) {
     return res.status(400).json(new ApiError(400, "No verification code found. Please request a new one."));
@@ -196,7 +213,6 @@ const verifyEmail = asyncHandler(async (req: Request, res: Response) => {
   }
 
   const isValidOTP = await bcrypt.compare(token, user.emailVerificationToken);
-
   if (!isValidOTP) {
     return res.status(400).json(new ApiError(400, "Invalid verification code"));
   }
@@ -206,15 +222,7 @@ const verifyEmail = asyncHandler(async (req: Request, res: Response) => {
   user.emailVerificationTokenExpiry = undefined;
   await user.save();
 
-  // Send success email
-  try {
-    const info = await sendMail(user.email, "Email Verified Successfully - MakeBreak", "email-verified-success", {
-      name: user.name,
-    });
-    console.log("Email verified success email sent:", info.messageId);
-  } catch (error) {
-    console.error("Success email error:", error);
-  }
+  console.log("✅ Email verified:", user.email);
 
   res.status(200).json(new ApiResponse(200, "Email verified successfully"));
 });
@@ -222,36 +230,25 @@ const verifyEmail = asyncHandler(async (req: Request, res: Response) => {
 // ----------------- REFRESH ACCESS TOKEN -----------------
 const refreshAccessToken = asyncHandler(async (req: Request, res: Response) => {
   const refreshToken = req.cookies?.refreshToken || req.body.refreshToken;
-
   if (!refreshToken) {
     return res.status(401).json(new ApiError(401, "Refresh token required"));
   }
-
   try {
     const jwt = await import("jsonwebtoken");
     const decoded: any = jwt.verify(refreshToken, process.env.REFRESH_TOKEN_SECRET!);
-
     const user = await User.findById(decoded._id);
-
     if (!user || user.refreshToken !== refreshToken) {
       return res.status(401).json(new ApiError(401, "Invalid refresh token"));
     }
-
     const newAccessToken = user.generateAccessToken();
     const newRefreshToken = user.generateRefreshToken();
-
     user.refreshToken = newRefreshToken;
     await user.save();
-
     res
       .status(200)
       .cookie("accessToken", newAccessToken, cookieOptions)
       .cookie("refreshToken", newRefreshToken, cookieOptions)
-      .json(
-        new ApiResponse(200, "Access token refreshed", {
-          accessToken: newAccessToken,
-        })
-      );
+      .json(new ApiResponse(200, "Access token refreshed", { accessToken: newAccessToken }));
   } catch (error) {
     return res.status(401).json(new ApiError(401, "Invalid or expired refresh token"));
   }

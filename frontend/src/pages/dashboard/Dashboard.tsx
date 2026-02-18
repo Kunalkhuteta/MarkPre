@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-unused-vars */
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { useEffect, useState } from "react";
-import {  useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import { api } from "@/lib/apiClient";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardAction } from "@/components/ui/card";
@@ -93,7 +93,7 @@ function Dashboard() {
   const handleExport = async (id: string, title: string, format: "pdf" | "html") => {
     try {
       toast.loading(`Exporting ${title} as ${format.toUpperCase()}...`);
-      
+
       const response = await api.get(`/presentations/export/${id}?format=${format}`, {
         responseType: format === "pdf" ? "blob" : "text",
       });
@@ -136,13 +136,13 @@ function Dashboard() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
+    <div className="min-h-screen bg-background">
       <div className="max-w-7xl mx-auto px-6 py-8">
         {/* Header */}
         <div className="flex items-center justify-between mb-8">
           <div>
-            <h1 className="text-4xl font-bold text-gray-900 dark:text-white">Dashboard</h1>
-            <p className="text-gray-600 dark:text-gray-400 mt-2">
+            <h1 className="text-4xl font-bold text-foreground">Dashboard</h1>
+            <p className="text-muted-foreground mt-2">
               Manage your presentations
             </p>
           </div>
@@ -156,56 +156,56 @@ function Dashboard() {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
           <Card>
             <CardHeader>
-              <CardTitle className="text-sm font-medium text-gray-600 dark:text-gray-400">
+              <CardTitle className="text-sm font-medium text-muted-foreground">
                 Total Presentations
               </CardTitle>
             </CardHeader>
             <CardContent>
               <div className="flex items-center gap-2">
-                <Presentation className="w-8 h-8 text-blue-600" />
-                <span className="text-3xl font-bold">{stats.totalPresentations}</span>
+                <Presentation className="w-8 h-8 text-blue-600 dark:text-blue-500" />
+                <span className="text-3xl font-bold text-foreground">{stats.totalPresentations}</span>
               </div>
             </CardContent>
           </Card>
 
           <Card>
             <CardHeader>
-              <CardTitle className="text-sm font-medium text-gray-600 dark:text-gray-400">
+              <CardTitle className="text-sm font-medium text-muted-foreground">
                 Total Slides
               </CardTitle>
             </CardHeader>
             <CardContent>
               <div className="flex items-center gap-2">
-                <FileText className="w-8 h-8 text-green-600" />
-                <span className="text-3xl font-bold">{stats.totalSlides}</span>
+                <FileText className="w-8 h-8 text-green-600 dark:text-green-500" />
+                <span className="text-3xl font-bold text-foreground">{stats.totalSlides}</span>
               </div>
             </CardContent>
           </Card>
 
           <Card>
             <CardHeader>
-              <CardTitle className="text-sm font-medium text-gray-600 dark:text-gray-400">
+              <CardTitle className="text-sm font-medium text-muted-foreground">
                 Total Words
               </CardTitle>
             </CardHeader>
             <CardContent>
               <div className="flex items-center gap-2">
-                <TrendingUp className="w-8 h-8 text-purple-600" />
-                <span className="text-3xl font-bold">{stats.totalWords.toLocaleString()}</span>
+                <TrendingUp className="w-8 h-8 text-purple-600 dark:text-purple-500" />
+                <span className="text-3xl font-bold text-foreground">{stats.totalWords.toLocaleString()}</span>
               </div>
             </CardContent>
           </Card>
 
           <Card>
             <CardHeader>
-              <CardTitle className="text-sm font-medium text-gray-600 dark:text-gray-400">
+              <CardTitle className="text-sm font-medium text-muted-foreground">
                 Total Views
               </CardTitle>
             </CardHeader>
             <CardContent>
               <div className="flex items-center gap-2">
-                <Eye className="w-8 h-8 text-orange-600" />
-                <span className="text-3xl font-bold">{stats.totalViews}</span>
+                <Eye className="w-8 h-8 text-orange-600 dark:text-orange-500" />
+                <span className="text-3xl font-bold text-foreground">{stats.totalViews}</span>
               </div>
             </CardContent>
           </Card>
@@ -213,13 +213,13 @@ function Dashboard() {
 
         {/* Presentations List */}
         <div>
-          <h2 className="text-2xl font-bold mb-4">Your Presentations</h2>
+          <h2 className="text-2xl font-bold text-foreground mb-4">Your Presentations</h2>
           {presentations.length === 0 ? (
             <Card>
               <CardContent className="py-12 text-center">
-                <Presentation className="w-16 h-16 mx-auto text-gray-400 mb-4" />
-                <h3 className="text-xl font-semibold mb-2">No presentations yet</h3>
-                <p className="text-gray-600 dark:text-gray-400 mb-6">
+                <Presentation className="w-16 h-16 mx-auto text-muted-foreground mb-4" />
+                <h3 className="text-xl font-semibold text-foreground mb-2">No presentations yet</h3>
+                <p className="text-muted-foreground mb-6">
                   Create your first presentation to get started
                 </p>
                 <Button onClick={() => navigate("/editor")}>
@@ -236,7 +236,7 @@ function Dashboard() {
                   className="hover:shadow-lg transition-shadow cursor-pointer group"
                 >
                   <CardHeader>
-                    <CardTitle className="line-clamp-2">{presentation.title}</CardTitle>
+                    <CardTitle className="line-clamp-2 text-foreground">{presentation.title}</CardTitle>
                     <CardAction>
                       <AlertDialog>
                         <AlertDialogTrigger asChild>
@@ -267,13 +267,13 @@ function Dashboard() {
 
                   <CardContent className="space-y-4">
                     <div
-                      className="text-sm text-gray-600 dark:text-gray-400 line-clamp-3"
+                      className="text-sm text-muted-foreground line-clamp-3"
                       onClick={() => navigate(`/editor/${presentation._id}`)}
                     >
                       {presentation.content.substring(0, 100)}...
                     </div>
 
-                    <div className="flex items-center gap-4 text-xs text-gray-500">
+                    <div className="flex items-center gap-4 text-xs text-muted-foreground">
                       <span className="flex items-center gap-1">
                         <FileText className="w-3 h-3" />
                         {presentation.slideCount || 0} slides

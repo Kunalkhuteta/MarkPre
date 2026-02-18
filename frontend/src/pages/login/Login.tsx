@@ -31,14 +31,22 @@ function Login() {
   });
 
   async function onSubmit(values: LoginFormValues) {
-    try {
-      await dispatch(loginUser(values)).unwrap();
-      navigate("/dashboard");
+  try {
+    const result = await dispatch(loginUser(values)).unwrap();
+    console.log("✅ Login result:", result);
+
+    if (result?.requiresVerification) {
+      toast.info("Please verify your email to continue");
+      navigate("/verify-email");
+    } else {
       toast.success("Welcome back!");
-    } catch (error) {
-      console.log(error);
+      navigate("/dashboard");
     }
+  } catch (error) {
+    const msg = typeof error === "string" ? error : "Login failed. Please check your credentials.";
+    toast.error(msg);
   }
+}
 
   return (
     <div className="min-h-screen grid lg:grid-cols-2 bg-gradient-to-br from-blue-50 via-white to-indigo-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900">
