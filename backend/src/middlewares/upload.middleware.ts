@@ -1,4 +1,4 @@
-import multer, { FileFilterCallback } from "multer";
+import multer, { FileFilterCallback, StorageEngine } from "multer";
 import path from "path";
 import fs from "fs";
 
@@ -9,7 +9,7 @@ if (!fs.existsSync(uploadDir)) {
 }
 
 // Configure storage
-const storage = multer.diskStorage({
+const storage: StorageEngine = multer.diskStorage({
   destination: (req, file, cb) => {
     cb(null, uploadDir);
   },
@@ -22,7 +22,7 @@ const storage = multer.diskStorage({
 // File filter - only images
 const fileFilter = (
   req: Express.Request,
-  file: Express.Multer.File,
+  file: { mimetype: string; originalname: string },
   cb: FileFilterCallback
 ) => {
   const allowedTypes = /jpeg|jpg|png|gif|webp|svg/;
@@ -38,11 +38,11 @@ const fileFilter = (
 
 // Create multer instance
 const upload = multer({
-  storage: storage,
+  storage,
   limits: {
     fileSize: 5 * 1024 * 1024, // 5MB limit
   },
-  fileFilter: fileFilter,
+  fileFilter,
 });
 
 export default upload;
