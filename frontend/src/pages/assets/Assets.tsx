@@ -128,11 +128,6 @@ const Assets = () => {
     }
   };
 
-  const handleCopyUrl = (url: string) => {
-    navigator.clipboard.writeText(url);
-    toast.success("Image URL copied to clipboard");
-  };
-
   const handleCopyMarkdown = (asset: Asset) => {
     const markdown = `![${asset.name}](${asset.url})`;
     navigator.clipboard.writeText(markdown);
