@@ -1,31 +1,25 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 /* eslint-disable @typescript-eslint/no-unused-vars */
-import { useState, useEffect, useCallback } from "react";
-import { useNavigate, useParams } from "react-router-dom";
+import { useState, useEffect, useCallback, useRef } from "react";
+import { useNavigate, useParams, useBlocker } from "react-router-dom";
 import { api } from "@/lib/apiClient";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
 import MarkdownEditor from "@/components/MarkdownEditor";
 import SlidePreview from "@/components/SlidePreview";
-import { Save, Download, ArrowLeft, Maximize2, Eye, EyeOff, Sparkles, Presentation, Wand2, FileText, Moon, Sun } from "lucide-react";
 import {
-  AlertDialog,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
+  Save, Download, ArrowLeft, Maximize2, Eye, EyeOff,
+  Sparkles, Presentation, Wand2, FileText, Moon, Sun,
+} from "lucide-react";
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel,
+  AlertDialogContent, AlertDialogDescription,
+  AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
+  Dialog, DialogContent, DialogDescription,
+  DialogHeader, DialogTitle, DialogTrigger,
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
@@ -36,6 +30,7 @@ function Editor() {
   const { id } = useParams();
   const navigate = useNavigate();
   const { theme, setTheme } = useTheme();
+
   const [title, setTitle] = useState("Untitled Presentation");
   const [markdown, setMarkdown] = useState("# Your Presentation\n\n---\n\n## Slide 2\n\nStart writing...");
   const [selectedTheme, setSelectedTheme] = useState<string | null>(null);
@@ -45,64 +40,68 @@ function Editor() {
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   const [showPreview, setShowPreview] = useState(true);
   const [_isFullscreen, setIsFullscreen] = useState(false);
-  
-  // AI States
   const [showAIDialog, setShowAIDialog] = useState(false);
   const [aiGenerating, setAiGenerating] = useState(false);
   const [aiTopic, setAiTopic] = useState("");
   const [aiSlideCount, setAiSlideCount] = useState(5);
   const [aiStyle, setAiStyle] = useState("professional");
 
+  // ✅ Refs to always have latest values in callbacks (fixes stale closure)
+  const markdownRef = useRef(markdown);
+  const titleRef = useRef(title);
+  const selectedThemeRef = useRef(selectedTheme);
+  const idRef = useRef(id);
+
+  useEffect(() => { markdownRef.current = markdown; }, [markdown]);
+  useEffect(() => { titleRef.current = title; }, [title]);
+  useEffect(() => { selectedThemeRef.current = selectedTheme; }, [selectedTheme]);
+  useEffect(() => { idRef.current = id; }, [id]);
+
+  // ✅ useBlocker intercepts ALL navigation including browser back button
+  const blocker = useBlocker(
+    ({ currentLocation, nextLocation }) =>
+      hasUnsavedChanges && currentLocation.pathname !== nextLocation.pathname
+  );
+
+  // ✅ Browser tab close / refresh
   useEffect(() => {
-    // Load themes
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      if (hasUnsavedChanges) { e.preventDefault(); e.returnValue = ""; }
+    };
+    window.addEventListener("beforeunload", handleBeforeUnload);
+    return () => window.removeEventListener("beforeunload", handleBeforeUnload);
+  }, [hasUnsavedChanges]);
+
+  // ✅ FIXED: Only depends on [id] — never re-runs when typing
+  useEffect(() => {
     loadThemes();
+    if (id) loadPresentation();
+  }, [id]);
 
-    // Load presentation if editing
-    if (id) {
-      loadPresentation();
-    }
-
-    // Auto-save every 30 seconds
-    const autoSaveInterval = setInterval(() => {
-      if (hasUnsavedChanges && title && markdown) {
-        handleSave(true);
-      }
+  // Auto-save — separate effect
+  useEffect(() => {
+    const interval = setInterval(() => {
+      if (hasUnsavedChanges) handleSave(true);
     }, 30000);
+    return () => clearInterval(interval);
+  }, [hasUnsavedChanges]);
 
-    // Keyboard shortcuts
+  // Keyboard shortcuts — separate effect, no deps needed since we use refs
+  useEffect(() => {
     const handleKeyboard = (e: KeyboardEvent) => {
-      // Ctrl/Cmd + S to save
-      if ((e.ctrlKey || e.metaKey) && e.key === "s") {
-        e.preventDefault();
-        handleSave(false);
-      }
-      // Ctrl/Cmd + P for preview toggle
-      if ((e.ctrlKey || e.metaKey) && e.key === "p") {
-        e.preventDefault();
-        setShowPreview(!showPreview);
-      }
-      // F11 for fullscreen
-      if (e.key === "F11") {
-        e.preventDefault();
-        toggleFullscreen();
-      }
+      if ((e.ctrlKey || e.metaKey) && e.key === "s") { e.preventDefault(); handleSave(false); }
+      if ((e.ctrlKey || e.metaKey) && e.key === "p") { e.preventDefault(); setShowPreview((p) => !p); }
+      if (e.key === "F11") { e.preventDefault(); toggleFullscreen(); }
     };
-
     document.addEventListener("keydown", handleKeyboard);
-
-    return () => {
-      clearInterval(autoSaveInterval);
-      document.removeEventListener("keydown", handleKeyboard);
-    };
-  }, [id, hasUnsavedChanges, showPreview]);
+    return () => document.removeEventListener("keydown", handleKeyboard);
+  }, []);
 
   const loadThemes = async () => {
     try {
       const res = await api.get("/themes/get-all-themes-for-user");
       setThemes(res.data.data || []);
-    } catch (error) {
-      console.error("Failed to load themes");
-    }
+    } catch { console.error("Failed to load themes"); }
   };
 
   const loadPresentation = async () => {
@@ -114,66 +113,60 @@ function Editor() {
       setSelectedTheme(data.theme?._id || null);
       setLastSaved(new Date(data.updatedAt));
       setHasUnsavedChanges(false);
-    } catch (error: unknown) {
+    } catch {
       toast.error("Failed to load presentation");
       navigate("/dashboard");
     }
   };
 
-  const handleSave = async (isAutoSave = false) => {
-    if (!title.trim()) {
-      toast.error("Please enter a title");
-      return;
-    }
+  // ✅ FIXED: Reads from refs so it always has latest values even in stale closures
+  const handleSave = useCallback(async (isAutoSave = false) => {
+    const currentTitle = titleRef.current;
+    const currentMarkdown = markdownRef.current;
+    const currentTheme = selectedThemeRef.current;
+    const currentId = idRef.current;
 
+    if (!currentTitle.trim()) { toast.error("Please enter a title"); return; }
     setIsSaving(true);
     try {
-      if (id) {
-        // Update existing
-        await api.put(`/presentations/update-presentation/${id}`, {
-          title,
-          content: markdown,
-          theme: selectedTheme,
+      if (currentId) {
+        await api.put(`/presentations/update-presentation/${currentId}`, {
+          title: currentTitle,
+          content: currentMarkdown,
+          theme: currentTheme,
         });
       } else {
-        // Create new
         const res = await api.post("/presentations/create-new-presentation", {
-          title,
-          content: markdown,
-          theme: selectedTheme,
+          title: currentTitle,
+          content: currentMarkdown,
+          theme: currentTheme,
         });
         navigate(`/editor/${res.data.data._id}`, { replace: true });
       }
-
       setLastSaved(new Date());
       setHasUnsavedChanges(false);
-      if (!isAutoSave) {
-        toast.success("Presentation saved successfully");
-      }
-    } catch (error: any) {
+      if (!isAutoSave) toast.success("Presentation saved successfully");
+    } catch {
       toast.error("Failed to save presentation");
     } finally {
       setIsSaving(false);
     }
+  }, []); // ✅ empty deps — always uses latest via refs
+
+  const handleSaveAndProceed = async () => {
+    await handleSave(false);
+    blocker.proceed?.();
   };
 
   const handleExport = async (format: "pdf" | "html") => {
-    if (!id) {
-      toast.error("Please save the presentation first");
-      return;
-    }
-
+    if (!id) { toast.error("Please save first"); return; }
     try {
       toast.loading(`Exporting as ${format.toUpperCase()}...`);
-      
       const response = await api.get(`/presentations/export/${id}?format=${format}`, {
         responseType: format === "pdf" ? "blob" : "text",
       });
-
       const url = window.URL.createObjectURL(
-        new Blob([response.data], {
-          type: format === "pdf" ? "application/pdf" : "text/html",
-        })
+        new Blob([response.data], { type: format === "pdf" ? "application/pdf" : "text/html" })
       );
       const link = document.createElement("a");
       link.href = url;
@@ -181,73 +174,43 @@ function Editor() {
       document.body.appendChild(link);
       link.click();
       link.remove();
-
       toast.dismiss();
-      toast.success(`Exported successfully as ${format.toUpperCase()}`);
-    } catch (error: any) {
-      toast.dismiss();
-      toast.error(`Failed to export as ${format.toUpperCase()}`);
-    }
+      toast.success(`Exported as ${format.toUpperCase()}`);
+    } catch { toast.dismiss(); toast.error("Failed to export"); }
   };
 
   const handleAIGenerate = async () => {
-    if (!aiTopic.trim()) {
-      toast.error("Please enter a topic");
-      return;
-    }
-
+    if (!aiTopic.trim()) { toast.error("Please enter a topic"); return; }
     setAiGenerating(true);
     try {
       const response = await api.post("/ai/generate-slides", {
-        topic: aiTopic,
-        slideCount: aiSlideCount,
-        style: aiStyle,
+        topic: aiTopic, slideCount: aiSlideCount, style: aiStyle,
       });
-
-      const generatedContent = response.data.data.content;
-      setMarkdown(generatedContent);
+      setMarkdown(response.data.data.content);
       setTitle(aiTopic);
       setHasUnsavedChanges(true);
       setShowAIDialog(false);
-      toast.success("Slides generated successfully!");
+      toast.success("Slides generated!");
     } catch (error: any) {
-      const errorMessage = error.response?.data?.message || "Failed to generate slides. Please check your Hugging Face API key.";
-      toast.error(errorMessage);
+      toast.error(error.response?.data?.message || "Failed to generate slides");
     } finally {
       setAiGenerating(false);
     }
   };
 
   const handleAIImprove = async () => {
-    if (!markdown.trim()) {
-      toast.error("No content to improve");
-      return;
-    }
-
-    toast.loading("Improving slides with AI...");
+    if (!markdown.trim()) { toast.error("No content to improve"); return; }
+    toast.loading("Improving slides...");
     try {
-      const response = await api.post("/ai/improve-slides", {
-        content: markdown,
-      });
-
+      const response = await api.post("/ai/improve-slides", { content: markdown });
       setMarkdown(response.data.data.content);
       setHasUnsavedChanges(true);
       toast.dismiss();
       toast.success("Slides improved!");
-    } catch (error: any) {
-      toast.dismiss();
-      toast.error("Failed to improve slides");
-    }
+    } catch { toast.dismiss(); toast.error("Failed to improve slides"); }
   };
 
-  const handlePresentationMode = () => {
-    if (!id) {
-      toast.error("Please save the presentation first");
-      return;
-    }
-    navigate(`/present/${id}`);
-  };
-
+  // ✅ useCallback with empty deps — stable reference, no re-render loops
   const handleContentChange = useCallback((newContent: string) => {
     setMarkdown(newContent);
     setHasUnsavedChanges(true);
@@ -268,228 +231,161 @@ function Editor() {
     }
   };
 
-  const toggleDarkMode = () => {
-    setTheme(theme === "dark" ? "light" : "dark");
-  };
-
   return (
     <div className="h-screen flex flex-col bg-background">
+
+      {/* ✅ Unsaved Changes Dialog — driven by useBlocker */}
+      <AlertDialog open={blocker.state === "blocked"}>
+        <AlertDialogContent className="bg-card border border-border shadow-2xl">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="text-foreground">Unsaved Changes</AlertDialogTitle>
+            <AlertDialogDescription className="text-muted-foreground">
+              You have unsaved changes. What would you like to do before leaving?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter className="flex gap-2 sm:flex-row flex-col">
+            <AlertDialogCancel className="sm:mr-auto" onClick={() => blocker.reset?.()}>
+              Stay on Page
+            </AlertDialogCancel>
+            <Button
+              variant="outline"
+              onClick={() => { setHasUnsavedChanges(false); blocker.proceed?.(); }}
+              className="text-red-600 border-red-200 hover:bg-red-50 dark:hover:bg-red-950"
+            >
+              Discard Changes
+            </Button>
+            <AlertDialogAction onClick={handleSaveAndProceed}>
+              Save & Leave
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
       {/* Toolbar */}
-      <div className="bg-card border-b px-6 py-3 flex items-center justify-between">
-        <div className="flex items-center gap-4 flex-1">
+      <div className="bg-card border-b px-6 py-3 flex items-center justify-between gap-2">
+        <div className="flex items-center gap-3 flex-1 min-w-0">
           <Button variant="ghost" size="icon" onClick={() => navigate("/dashboard")}>
             <ArrowLeft className="w-5 h-5" />
           </Button>
-
           <Input
             value={title}
             onChange={handleTitleChange}
             placeholder="Untitled Presentation"
-            className="max-w-md font-semibold text-lg border-0 focus-visible:ring-0"
+            className="max-w-xs font-semibold text-base border-0 focus-visible:ring-0 bg-transparent"
           />
-
           {hasUnsavedChanges && (
-            <span className="text-sm text-muted-foreground">● Unsaved changes</span>
+            <span className="text-xs text-amber-500 font-medium flex items-center gap-1 shrink-0">
+              <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" />
+              Unsaved
+            </span>
           )}
           {lastSaved && !hasUnsavedChanges && (
-            <span className="text-sm text-muted-foreground">
+            <span className="text-xs text-muted-foreground shrink-0">
               Saved {lastSaved.toLocaleTimeString()}
             </span>
           )}
         </div>
 
-        <div className="flex items-center gap-2">
-          {/* Dark Mode Toggle */}
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={toggleDarkMode}
-            title="Toggle dark mode"
-          >
+        <div className="flex items-center gap-1.5 shrink-0">
+          <Button variant="ghost" size="icon" onClick={() => setTheme(theme === "dark" ? "light" : "dark")}>
             {theme === "dark" ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
           </Button>
 
-          <AssetManager 
-  onSelectAsset={(asset) => {
-    const imageMarkdown = `\n![${asset.name}](${asset.url})\n`;
-    setMarkdown(markdown + imageMarkdown);
-    setHasUnsavedChanges(true);
-    toast.success("Image inserted");
-  }}
-/>
+          <AssetManager
+            onSelectAsset={(asset) => {
+              setMarkdown((prev) => prev + `\n![${asset.name}](${asset.url})\n`);
+              setHasUnsavedChanges(true);
+              toast.success("Image inserted");
+            }}
+          />
 
-          {/* Theme Selector */}
           <select
             value={selectedTheme || ""}
-            onChange={(e) => {
-              setSelectedTheme(e.target.value || null);
-              setHasUnsavedChanges(true);
-            }}
-            className="px-3 py-2 border rounded-md text-sm bg-background"
+            onChange={(e) => { setSelectedTheme(e.target.value || null); setHasUnsavedChanges(true); }}
+            className="px-2 py-1.5 border border-border rounded-md text-sm bg-background text-foreground"
           >
             <option value="">Default Theme</option>
-            {themes.map((theme) => (
-              <option key={theme._id} value={theme._id}>
-                {theme.name}
-              </option>
-            ))}
+            {themes.map((t) => <option key={t._id} value={t._id}>{t.name}</option>)}
           </select>
 
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => setShowPreview(!showPreview)}
-          >
+          <Button variant="outline" size="sm" onClick={() => setShowPreview((p) => !p)}>
             {showPreview ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
           </Button>
 
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={toggleFullscreen}
-          >
+          <Button variant="outline" size="sm" onClick={toggleFullscreen}>
             <Maximize2 className="w-4 h-4" />
           </Button>
 
-          {/* AI Generate Dialog */}
+          {/* AI Generate */}
           <Dialog open={showAIDialog} onOpenChange={setShowAIDialog}>
             <DialogTrigger asChild>
-              <Button variant="outline" size="sm" className="gap-2">
-                <Sparkles className="w-4 h-4" />
-                AI Generate
+              <Button variant="outline" size="sm" className="gap-1.5">
+                <Sparkles className="w-4 h-4" /> AI
               </Button>
             </DialogTrigger>
-            <DialogContent>
+            <DialogContent className="bg-card border border-border">
               <DialogHeader>
                 <DialogTitle>Generate Slides with AI</DialogTitle>
-                <DialogDescription>
-                  Let AI create a complete presentation for you
-                </DialogDescription>
+                <DialogDescription>Let AI create a presentation for you</DialogDescription>
               </DialogHeader>
               <div className="space-y-4 py-4">
                 <div className="space-y-2">
-                  <Label htmlFor="topic">Topic</Label>
-                  <Input
-                    id="topic"
-                    placeholder="e.g., Introduction to Machine Learning"
-                    value={aiTopic}
-                    onChange={(e) => setAiTopic(e.target.value)}
-                  />
+                  <Label>Topic</Label>
+                  <Input placeholder="e.g., Machine Learning Basics" value={aiTopic} onChange={(e) => setAiTopic(e.target.value)} />
                 </div>
-
                 <div className="space-y-2">
-                  <Label htmlFor="slideCount">Number of Slides</Label>
-                  <Input
-                    id="slideCount"
-                    type="number"
-                    min="3"
-                    max="20"
-                    value={aiSlideCount}
-                    onChange={(e) => setAiSlideCount(parseInt(e.target.value))}
-                  />
+                  <Label>Number of Slides</Label>
+                  <Input type="number" min="3" max="20" value={aiSlideCount} onChange={(e) => setAiSlideCount(parseInt(e.target.value))} />
                 </div>
-
                 <div className="space-y-2">
                   <Label>Style</Label>
-                  <RadioGroup value={aiStyle} onValueChange={setAiStyle}>
-                    <div className="flex items-center space-x-2">
-                      <RadioGroupItem value="professional" id="professional" />
-                      <Label htmlFor="professional">Professional</Label>
-                    </div>
-                    <div className="flex items-center space-x-2">
-                      <RadioGroupItem value="casual" id="casual" />
-                      <Label htmlFor="casual">Casual</Label>
-                    </div>
-                    <div className="flex items-center space-x-2">
-                      <RadioGroupItem value="academic" id="academic" />
-                      <Label htmlFor="academic">Academic</Label>
-                    </div>
-                    <div className="flex items-center space-x-2">
-                      <RadioGroupItem value="creative" id="creative" />
-                      <Label htmlFor="creative">Creative</Label>
-                    </div>
+                  <RadioGroup value={aiStyle} onValueChange={setAiStyle} className="grid grid-cols-2 gap-2">
+                    {["professional", "casual", "academic", "creative"].map((s) => (
+                      <div key={s} className="flex items-center space-x-2 border border-border rounded-md p-2">
+                        <RadioGroupItem value={s} id={s} />
+                        <Label htmlFor={s} className="capitalize cursor-pointer">{s}</Label>
+                      </div>
+                    ))}
                   </RadioGroup>
                 </div>
-
-                <Button
-                  onClick={handleAIGenerate}
-                  disabled={aiGenerating || !aiTopic.trim()}
-                  className="w-full"
-                >
-                  {aiGenerating ? (
-                    <>Generating...</>
-                  ) : (
-                    <>
-                      <Sparkles className="w-4 h-4 mr-2" />
-                      Generate Presentation
-                    </>
-                  )}
+                <Button onClick={handleAIGenerate} disabled={aiGenerating || !aiTopic.trim()} className="w-full">
+                  {aiGenerating ? "Generating..." : <><Sparkles className="w-4 h-4 mr-2" />Generate</>}
                 </Button>
-
-                <p className="text-xs text-muted-foreground">
-                  Note: Requires Hugging Face API key configured in backend
-                </p>
               </div>
             </DialogContent>
           </Dialog>
 
-          {/* AI Improve */}
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={handleAIImprove}
-            className="gap-2"
-          >
-            <Wand2 className="w-4 h-4" />
-            AI Improve
+          <Button variant="outline" size="sm" onClick={handleAIImprove} className="gap-1.5">
+            <Wand2 className="w-4 h-4" /> Improve
           </Button>
 
-          {/* Presentation Mode */}
           {id && (
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={handlePresentationMode}
-              className="gap-2"
-            >
-              <Presentation className="w-4 h-4" />
-              Present
+            <Button variant="outline" size="sm" onClick={() => navigate(`/present/${id}`)} className="gap-1.5">
+              <Presentation className="w-4 h-4" /> Present
             </Button>
           )}
 
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => handleSave(false)}
-            disabled={isSaving}
-          >
-            <Save className="w-4 h-4 mr-2" />
+          <Button variant="outline" size="sm" onClick={() => handleSave(false)} disabled={isSaving}>
+            <Save className="w-4 h-4 mr-1.5" />
             {isSaving ? "Saving..." : "Save"}
           </Button>
 
           {id && (
             <AlertDialog>
               <AlertDialogTrigger asChild>
-                <Button size="sm">
-                  <Download className="w-4 h-4 mr-2" />
-                  Export
-                </Button>
+                <Button size="sm"><Download className="w-4 h-4 mr-1.5" />Export</Button>
               </AlertDialogTrigger>
-              <AlertDialogContent>
+              <AlertDialogContent className="bg-card border border-border">
                 <AlertDialogHeader>
                   <AlertDialogTitle>Export Presentation</AlertDialogTitle>
-                  <AlertDialogDescription>
-                    Choose your export format
-                  </AlertDialogDescription>
+                  <AlertDialogDescription>Choose your export format</AlertDialogDescription>
                 </AlertDialogHeader>
-                <div className="grid gap-4 py-4">
+                <div className="grid gap-3 py-4">
                   <Button onClick={() => handleExport("pdf")} className="w-full">
-                    <FileText className="w-4 h-4 mr-2" />
-                    Export as PDF
+                    <FileText className="w-4 h-4 mr-2" />Export as PDF
                   </Button>
                   <Button onClick={() => handleExport("html")} variant="outline" className="w-full">
-                    <FileText className="w-4 h-4 mr-2" />
-                    Export as HTML
+                    <FileText className="w-4 h-4 mr-2" />Export as HTML
                   </Button>
                 </div>
                 <AlertDialogFooter>
@@ -503,12 +399,9 @@ function Editor() {
 
       {/* Editor & Preview */}
       <div className="flex-1 flex overflow-hidden">
-        {/* Markdown Editor */}
         <div className={showPreview ? "w-1/2 border-r" : "w-full"}>
           <MarkdownEditor value={markdown} onChange={handleContentChange} />
         </div>
-
-        {/* Live Preview */}
         {showPreview && (
           <div className="w-1/2">
             <SlidePreview markdown={markdown} themeId={selectedTheme} />
@@ -516,11 +409,11 @@ function Editor() {
         )}
       </div>
 
-      {/* Keyboard Shortcuts Help */}
-      <div className="bg-muted px-4 py-2 text-xs text-muted-foreground flex gap-4">
-        <span><kbd className="px-2 py-1 bg-background rounded">Ctrl+S</kbd> Save</span>
-        <span><kbd className="px-2 py-1 bg-background rounded">Ctrl+P</kbd> Toggle Preview</span>
-        <span><kbd className="px-2 py-1 bg-background rounded">F11</kbd> Fullscreen</span>
+      {/* Keyboard Shortcuts */}
+      <div className="bg-muted px-4 py-1.5 text-xs text-muted-foreground flex gap-4 border-t">
+        <span><kbd className="px-1.5 py-0.5 bg-background border border-border rounded text-xs">Ctrl+S</kbd> Save</span>
+        <span><kbd className="px-1.5 py-0.5 bg-background border border-border rounded text-xs">Ctrl+P</kbd> Preview</span>
+        <span><kbd className="px-1.5 py-0.5 bg-background border border-border rounded text-xs">F11</kbd> Fullscreen</span>
       </div>
     </div>
   );

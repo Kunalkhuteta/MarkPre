@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" fill="none">
+  <!-- Background rounded square -->
+  <rect width="64" height="64" rx="14" fill="#2563EB"/>
+  
+  <!-- Slide/document shape -->
+  <rect x="10" y="13" width="44" height="32" rx="4" fill="white" opacity="0.15"/>
+  <rect x="10" y="13" width="44" height="32" rx="4" stroke="white" stroke-width="2" stroke-opacity="0.6"/>
+
+  <!-- "M" mark for Markdown / MarkPre -->
+  <path d="M18 36V22l7 9 7-9v14" stroke="white" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round"/>
+
+  <!-- Right arrow / play indicator (presentation) -->
+  <path d="M38 29l8 3-8 3V29z" fill="white" opacity="0.9"/>
+
+  <!-- Bottom dots for slide indicators -->
+  <circle cx="26" cy="52" r="2.5" fill="white" opacity="0.4"/>
+  <circle cx="32" cy="52" r="2.5" fill="white"/>
+  <circle cx="38" cy="52" r="2.5" fill="white" opacity="0.4"/>
+</svg>
