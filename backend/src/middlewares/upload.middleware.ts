@@ -1,4 +1,4 @@
-import multer from "multer";
+import multer, { FileFilterCallback } from "multer";
 import path from "path";
 import fs from "fs";
 
@@ -20,13 +20,17 @@ const storage = multer.diskStorage({
 });
 
 // File filter - only images
-const fileFilter = (req: any, file: Express.Multer.File, cb: multer.FileFilterCallback) => {
+const fileFilter = (
+  req: Express.Request,
+  file: Express.Multer.File,
+  cb: FileFilterCallback
+) => {
   const allowedTypes = /jpeg|jpg|png|gif|webp|svg/;
   const extname = allowedTypes.test(path.extname(file.originalname).toLowerCase());
   const mimetype = allowedTypes.test(file.mimetype);
 
   if (mimetype && extname) {
-    return cb(null, true);
+    cb(null, true);
   } else {
     cb(new Error("Only image files are allowed (jpeg, jpg, png, gif, webp, svg)"));
   }
