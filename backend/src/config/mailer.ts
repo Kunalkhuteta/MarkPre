@@ -34,6 +34,14 @@ transporter.use(
   })
 );
 
+transporter.verify((error, success) => {
+  if (error) {
+    console.error("❌ Mailer verify failed:", error.message);
+  } else {
+    console.log("✅ Mailer connected successfully");
+  }
+});
+
 // Send mail function
 async function sendMail(
   emailTo: string,
