@@ -11,8 +11,7 @@ __pycache__/
 
 # Virtual environments
 venv/
-env/
-.env
+
 .venv
 
 # PyPI credentials
@@ -36,3 +35,4 @@ desktop.ini
 .idea/
 *.suo
 *.user
+

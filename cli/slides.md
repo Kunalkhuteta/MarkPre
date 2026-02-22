@@ -10,7 +10,7 @@
 2.  Basic Markdown Syntax
 3.  Advanced Syntax for Slides
 4.  Code in Presentations
-5.  Introducing `makebreak`
+5.  Introducing `markpre`
 6.  Live Demo
 7.  Q&A
 

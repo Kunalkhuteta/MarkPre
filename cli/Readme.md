@@ -12,15 +12,11 @@ pip install markpre
 
 Requirements: Python 3.8 or higher
 
-To update to the latest version:
-
 ```bash
+# Update to latest version
 pip install --upgrade markpre
-```
 
-To uninstall:
-
-```bash
+# Uninstall
 pip uninstall markpre
 ```
 
@@ -28,25 +24,25 @@ pip uninstall markpre
 
 ## Important: First Request May Be Slow
 
-MarkPre's backend runs on Render's free tier, which means the server sleeps after 15 minutes of inactivity. When you run your first command of the day, the server may take 30 to 60 seconds to wake up.
+MarkPre's backend runs on Render's free tier, which means the server sleeps after 15 minutes of inactivity. Your first command may take 30 to 60 seconds to respond.
 
 If you see this error:
 
 ```
-Request timed out — server may be waking up (Render free tier), try again
+Request timed out — server may be waking up (Render free tier). Wait 30s and retry.
 ```
 
-Wake the server first, then retry your command:
+Wake the server first, then retry:
 
 ```bash
-# Mac / Linux — ping the health endpoint
+# Mac / Linux
 curl https://markpre.onrender.com/health
 
-# Windows PowerShell — ping the health endpoint
+# Windows PowerShell
 Invoke-WebRequest -Uri "https://markpre.onrender.com/health" -UseBasicParsing
 ```
 
-Wait for a response, then run your original command. This only affects the first request after a period of inactivity. All subsequent commands will respond quickly.
+This only affects the first request after inactivity. All subsequent commands will be fast.
 
 ---
 
@@ -56,7 +52,7 @@ Wait for a response, then run your original command. This only affects the first
 # 1. Log in
 markpre login --email your@email.com --password yourpassword
 
-# 2. Verify the connection
+# 2. Check the connection and your export directory
 markpre status
 
 # 3. List your presentations
@@ -68,7 +64,7 @@ markpre presentation add -t "My Talk" -m slides.md
 # 5. Export to PDF
 markpre presentation export <ID> -f pdf -o my-talk.pdf
 
-# 6. Log out when done
+# 6. Log out
 markpre logout
 ```
 
@@ -78,7 +74,7 @@ markpre logout
 
 ### `markpre login`
 
-Log in to your MarkPre account. Your token is saved locally so you stay logged in across sessions.
+Log in to your account. Your token is saved locally so you stay logged in across sessions.
 
 ```bash
 markpre login --email your@email.com --password yourpassword
@@ -87,13 +83,13 @@ markpre login --email your@email.com --password yourpassword
 markpre login
 ```
 
-Credentials are saved to `~/.markpre_config.json` (see Configuration section).
+Token is saved to `~/.markpre_config.json`. Run `markpre logout` to delete it.
 
 ---
 
 ### `markpre logout`
 
-Log out and delete your saved credentials from your machine.
+Log out and delete your saved credentials.
 
 ```bash
 markpre logout
@@ -103,7 +99,7 @@ markpre logout
 
 ### `markpre status`
 
-Check whether you are logged in and whether the server is reachable.
+Check whether you are logged in, whether the server is reachable, and which export directory is currently configured.
 
 ```bash
 markpre status
@@ -112,17 +108,18 @@ markpre status
 Example output:
 
 ```
-╭─────────────────── MarkPre Status ───────────────────╮
-│  Logged in as: you@email.com                         │
-│  Server online: https://markpre.onrender.com/api     │
-╰──────────────────────────────────────────────────────╯
+╭──────────────── MarkPre Status ─────────────────╮
+│  Logged in as: you@email.com                    │
+│  Server online: https://markpre.onrender.com/api│
+│  Export directory: /Users/you/Downloads         │
+╰─────────────────────────────────────────────────╯
 ```
 
 ---
 
 ### `markpre presentation list`
 
-List all your presentations in a table showing ID, title, slide count, word count, and last updated date.
+List all your presentations.
 
 ```bash
 markpre presentation list
@@ -143,12 +140,12 @@ Example output:
 
 ### `markpre presentation add`
 
-Create a new presentation by uploading a Markdown file. Slides are separated by `---`.
+Create a presentation from a Markdown file. Slides are separated by `---`.
 
 ```bash
 markpre presentation add -t "My Talk" -m ./slides.md
 
-# Optionally apply a theme by ID
+# With a theme ID
 markpre presentation add -t "My Talk" -m ./slides.md --theme <THEME_ID>
 
 # Run without flags to be prompted interactively
@@ -163,36 +160,19 @@ markpre presentation add
 
 ---
 
-### `markpre presentation delete`
-
-Delete a presentation by its ID. Use `markpre presentation list` to find the ID.
-
-```bash
-markpre presentation delete <ID>
-```
-
-You will be asked to confirm before the deletion is executed:
-
-```
-Delete this presentation? [y/N]: y
-Deleted
-```
-
----
-
 ### `markpre presentation export`
 
-Export a presentation to PDF or HTML. The file is saved to the path specified by `-o`.
+Export a presentation to PDF or HTML.
 
 ```bash
-# Export as PDF
+# Export as PDF with an explicit output path
 markpre presentation export <ID> -f pdf -o my-talk.pdf
 
 # Export as HTML
 markpre presentation export <ID> -f html -o my-talk.html
 
-# Without -o, saves as presentation.pdf or presentation.html in the current directory
-markpre presentation export <ID>
+# Omit -o to use MARKPRE_EXPORT_DIR (or current directory if not set)
+markpre presentation export <ID> -f pdf
 ```
 
 | Flag | Long form | Description |
@@ -200,11 +180,25 @@ markpre presentation export <ID>
 | `-f` | `--format` | `pdf` or `html` (default: `pdf`) |
 | `-o` | `--output` | Output file path (optional) |
 
-Windows — export directly to the Downloads folder:
+When `-o` is omitted, the file is named after the presentation title and saved according to the priority rules described in the Default Export Directory section below.
 
-```powershell
-$dt = "$env:USERPROFILE\Downloads"
-markpre presentation export <ID> -f pdf -o "$dt\MyTalk.pdf"
+PDF export uses headless Chrome on the server. Allow 10 to 30 seconds for generation.
+
+---
+
+### `markpre presentation delete`
+
+Delete a presentation by ID.
+
+```bash
+markpre presentation delete <ID>
+```
+
+You will be asked to confirm:
+
+```
+Delete this presentation? [y/N]: y
+Deleted
 ```
 
 ---
@@ -219,7 +213,7 @@ markpre --version
 
 ### `markpre --help`
 
-List all available commands and options.
+Show all commands and options.
 
 ```bash
 markpre --help
@@ -233,7 +227,7 @@ markpre --help
 |---|---|
 | `markpre login` | Log in to your account |
 | `markpre logout` | Log out and clear saved token |
-| `markpre status` | Check login status and server reachability |
+| `markpre status` | Check login, server, and export directory |
 | `markpre presentation list` | List all presentations |
 | `markpre presentation add` | Create from a Markdown file |
 | `markpre presentation delete <ID>` | Delete a presentation |
@@ -243,9 +237,53 @@ markpre --help
 
 ---
 
+## Default Export Directory (MARKPRE_EXPORT_DIR)
+
+By default, exports are saved to the current working directory with the presentation title as the filename. Set the `MARKPRE_EXPORT_DIR` environment variable to always save exports to a specific folder, so you never need to type `-o` each time.
+
+**Output path priority:**
+
+1. Explicit `-o` / `--output` flag — used exactly as given
+2. `MARKPRE_EXPORT_DIR` env variable — file named `<title>.<format>` saved inside that folder
+3. Current working directory — file named `<title>.<format>` saved in cwd
+
+### Setting the variable
+
+```bash
+# Mac / Linux — current terminal session
+export MARKPRE_EXPORT_DIR=~/Downloads
+
+# Mac / Linux — permanent (add to ~/.zshrc or ~/.bashrc)
+echo 'export MARKPRE_EXPORT_DIR=~/Downloads' >> ~/.zshrc
+
+# Windows PowerShell — current session
+$env:MARKPRE_EXPORT_DIR = "$env:USERPROFILE\Downloads"
+
+# Windows PowerShell — verify it is set
+echo $env:MARKPRE_EXPORT_DIR
+```
+
+Once set, exporting without `-o` automatically saves to that folder:
+
+```bash
+# Saves to ~/Downloads/My Talk.pdf
+markpre presentation export <ID> -f pdf
+```
+
+Run `markpre status` to confirm which directory is active.
+
+### Windows one-liner (no env var needed)
+
+```powershell
+$dt = "$env:USERPROFILE\Downloads"
+markpre presentation export <ID> -f pdf -o "$dt\MyTalk.pdf"
+```
+
+---
+
 ## Markdown File Format
 
-MarkPre separates slides using `---`. Each section becomes one slide. Standard Markdown syntax is supported within each slide.
+Use `---` on its own line to separate slides.
 
 ```markdown
 # Title Slide
@@ -269,7 +307,7 @@ Subtitle text here
 Closing content here
 ```
 
-Supported formatting within slides:
+Supported formatting:
 
 | Syntax | Result |
 |---|---|
@@ -277,36 +315,40 @@ Supported formatting within slides:
 | `## Text` | Slide section heading |
 | `### Text` | Subheading |
 | `- Text` | Bullet point |
-| `![alt](url)` | Inline image |
+| `1. Text` | Numbered list item |
+| `**text**` | Bold |
+| `*text*` | Italic |
+| `` `text` `` | Inline code |
+| `![alt](url)` | Image |
 | Plain text | Paragraph |
 
 ---
 
-## Configuration
+## Configuration File
 
-The CLI stores your login token in a local config file:
+The CLI stores your token at:
 
 | Platform | Path |
 |---|---|
-| Windows | `C:\Users\YOUR_NAME\.markpre_config.json` |
 | Mac / Linux | `~/.markpre_config.json` |
+| Windows | `C:\Users\YOUR_NAME\.markpre_config.json` |
 
-This file is created automatically on login and deleted on logout. Do not commit this file to version control — add it to your `.gitignore` if needed.
+Created automatically on login, deleted on logout. Do not commit this file to version control.
 
 ---
 
 ## Custom Backend
 
-If you are self-hosting MarkPre, point the CLI at your own backend by setting the `MARKPRE_API_URL` environment variable before running any command.
+If you are self-hosting MarkPre, set `MARKPRE_API_URL` before running any command:
 
 ```bash
-# Mac / Linux (current session)
+# Mac / Linux — current session
 export MARKPRE_API_URL=https://your-backend.onrender.com/api
 
-# Mac / Linux (permanent — add to ~/.zshrc or ~/.bashrc)
+# Mac / Linux — permanent
 echo 'export MARKPRE_API_URL=https://your-backend.onrender.com/api' >> ~/.zshrc
 
-# Windows PowerShell (current session)
+# Windows PowerShell — current session
 $env:MARKPRE_API_URL = "https://your-backend.onrender.com/api"
 ```
 
@@ -318,9 +360,11 @@ $env:MARKPRE_API_URL = "https://your-backend.onrender.com/api"
 |---|---|---|
 | `Request timed out` | Render server sleeping | Ping the health endpoint, wait 30 seconds, then retry |
 | `Authentication failed` | Token expired or invalid | Run `markpre login` again |
-| `Cannot connect to server` | No internet or wrong URL | Check your connection or verify `MARKPRE_API_URL` |
-| `No module named 'markpre'` | Not installed or wrong Python | Run `pip install markpre` |
-| `ModuleNotFoundError` | Corrupt installation | Run `pip uninstall markpre -y` then `pip install markpre` |
+| `Cannot connect to server` | No internet or wrong URL | Check connection or verify `MARKPRE_API_URL` |
+| `Export failed: PDF generation failed` | Puppeteer crash on server | Try again — usually resolves on second attempt |
+| `Received empty file` | Export streamed 0 bytes | Re-save the presentation in the editor, then retry |
+| `No module named 'markpre'` | Not installed | Run `pip install markpre` |
+| `ModuleNotFoundError` | Corrupt install | Run `pip uninstall markpre -y` then `pip install markpre` |
 
 ---
 

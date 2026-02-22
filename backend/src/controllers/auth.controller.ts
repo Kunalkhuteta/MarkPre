@@ -34,7 +34,7 @@ const registerUser = asyncHandler(async (req: Request, res: Response) => {
   console.log("OTP:", otp);
   console.log("=====================================");
 
-  sendMail(user.email, "Verify Your Email - MakeBreak", "email-verification-otp", {
+  sendMail(user.email, "Verify Your Email - MarkPre", "email-verification-otp", {
     name: user.name,
     otpDigits: otp.split(""),
   })
@@ -78,7 +78,7 @@ const loginUser = asyncHandler(async (req: Request, res: Response) => {
     res.cookie("refreshToken", loginData.refreshToken, cookieOptions);
 
     // Fire and forget - don't block response
-    sendMail(loginData.user.email, "Verify Your Email - MakeBreak", "email-verification-otp", {
+    sendMail(loginData.user.email, "Verify Your Email - MarkPre", "email-verification-otp", {
       name: loginData.user.name,
       otpDigits: otp.split(""),
     })
@@ -182,7 +182,7 @@ const generateEmailVerificationToken = asyncHandler(async (req: Request, res: Re
   user.emailVerificationTokenExpiry = new Date(Date.now() + 10 * 60 * 1000);
   await user.save();
 
-  sendMail(user.email, "Verify Your Email - MakeBreak", "email-verification-otp", {
+  sendMail(user.email, "Verify Your Email - MarkPre", "email-verification-otp", {
     name: user.name,
     otpDigits: otp.split(""),
   })

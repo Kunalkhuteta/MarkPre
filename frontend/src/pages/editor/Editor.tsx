@@ -46,7 +46,7 @@ function Editor() {
   const [aiSlideCount, setAiSlideCount] = useState(5);
   const [aiStyle, setAiStyle] = useState("professional");
 
-  // ✅ Refs to always have latest values in callbacks (fixes stale closure)
+  // Refs to always have latest values in callbacks (fixes stale closure)
   const markdownRef = useRef(markdown);
   const titleRef = useRef(title);
   const selectedThemeRef = useRef(selectedTheme);
@@ -57,13 +57,13 @@ function Editor() {
   useEffect(() => { selectedThemeRef.current = selectedTheme; }, [selectedTheme]);
   useEffect(() => { idRef.current = id; }, [id]);
 
-  // ✅ useBlocker intercepts ALL navigation including browser back button
+  // useBlocker intercepts ALL navigation including browser back button
   const blocker = useBlocker(
     ({ currentLocation, nextLocation }) =>
       hasUnsavedChanges && currentLocation.pathname !== nextLocation.pathname
   );
 
-  // ✅ Browser tab close / refresh
+  // Browser tab close / refresh warning
   useEffect(() => {
     const handleBeforeUnload = (e: BeforeUnloadEvent) => {
       if (hasUnsavedChanges) { e.preventDefault(); e.returnValue = ""; }
@@ -72,13 +72,13 @@ function Editor() {
     return () => window.removeEventListener("beforeunload", handleBeforeUnload);
   }, [hasUnsavedChanges]);
 
-  // ✅ FIXED: Only depends on [id] — never re-runs when typing
+  // Only depends on [id] — never re-runs when typing
   useEffect(() => {
     loadThemes();
     if (id) loadPresentation();
   }, [id]);
 
-  // Auto-save — separate effect
+  // Auto-save every 30 seconds
   useEffect(() => {
     const interval = setInterval(() => {
       if (hasUnsavedChanges) handleSave(true);
@@ -86,7 +86,7 @@ function Editor() {
     return () => clearInterval(interval);
   }, [hasUnsavedChanges]);
 
-  // Keyboard shortcuts — separate effect, no deps needed since we use refs
+  // Keyboard shortcuts — uses refs so no stale closures
   useEffect(() => {
     const handleKeyboard = (e: KeyboardEvent) => {
       if ((e.ctrlKey || e.metaKey) && e.key === "s") { e.preventDefault(); handleSave(false); }
@@ -119,7 +119,7 @@ function Editor() {
     }
   };
 
-  // ✅ FIXED: Reads from refs so it always has latest values even in stale closures
+  // Reads from refs so it always has latest values even in stale closures
   const handleSave = useCallback(async (isAutoSave = false) => {
     const currentTitle = titleRef.current;
     const currentMarkdown = markdownRef.current;
@@ -151,7 +151,7 @@ function Editor() {
     } finally {
       setIsSaving(false);
     }
-  }, []); // ✅ empty deps — always uses latest via refs
+  }, []); // empty deps — always uses latest via refs
 
   const handleSaveAndProceed = async () => {
     await handleSave(false);
@@ -163,20 +163,25 @@ function Editor() {
     try {
       toast.loading(`Exporting as ${format.toUpperCase()}...`);
       const response = await api.get(`/presentations/export/${id}?format=${format}`, {
-        responseType: format === "pdf" ? "blob" : "text",
+        responseType: "blob", // Always use blob — works for both PDF and HTML
       });
-      const url = window.URL.createObjectURL(
-        new Blob([response.data], { type: format === "pdf" ? "application/pdf" : "text/html" })
-      );
+
+      const mimeType = format === "pdf" ? "application/pdf" : "text/html";
+      const blob = new Blob([response.data], { type: mimeType });
+      const url = window.URL.createObjectURL(blob);
       const link = document.createElement("a");
       link.href = url;
       link.setAttribute("download", `${title}.${format}`);
       document.body.appendChild(link);
       link.click();
       link.remove();
+      window.URL.revokeObjectURL(url); // Clean up object URL
       toast.dismiss();
       toast.success(`Exported as ${format.toUpperCase()}`);
-    } catch { toast.dismiss(); toast.error("Failed to export"); }
+    } catch {
+      toast.dismiss();
+      toast.error("Failed to export. Make sure the presentation is saved first.");
+    }
   };
 
   const handleAIGenerate = async () => {
@@ -210,7 +215,7 @@ function Editor() {
     } catch { toast.dismiss(); toast.error("Failed to improve slides"); }
   };
 
-  // ✅ useCallback with empty deps — stable reference, no re-render loops
+  // Stable callback reference — no re-render loops
   const handleContentChange = useCallback((newContent: string) => {
     setMarkdown(newContent);
     setHasUnsavedChanges(true);
@@ -232,9 +237,9 @@ function Editor() {
   };
 
   return (
-    <div className="h-screen flex flex-col bg-background">
+    <div className="h-screen flex flex-col bg-background overflow-hidden">
 
-      {/* ✅ Unsaved Changes Dialog — driven by useBlocker */}
+      {/* Unsaved Changes Dialog — driven by useBlocker */}
       <AlertDialog open={blocker.state === "blocked"}>
         <AlertDialogContent className="bg-card border border-border shadow-2xl">
           <AlertDialogHeader>
@@ -262,7 +267,7 @@ function Editor() {
       </AlertDialog>
 
       {/* Toolbar */}
-      <div className="bg-card border-b px-6 py-3 flex items-center justify-between gap-2">
+      <div className="bg-card border-b px-6 py-3 flex items-center justify-between gap-2 shrink-0">
         <div className="flex items-center gap-3 flex-1 min-w-0">
           <Button variant="ghost" size="icon" onClick={() => navigate("/dashboard")}>
             <ArrowLeft className="w-5 h-5" />
@@ -397,20 +402,25 @@ function Editor() {
         </div>
       </div>
 
-      {/* Editor & Preview */}
-      <div className="flex-1 flex overflow-hidden">
-        <div className={showPreview ? "w-1/2 border-r" : "w-full"}>
-          <MarkdownEditor value={markdown} onChange={handleContentChange} />
+      {/* ✅ FIX 1: Editor & Preview — both panels scroll independently */}
+      <div className="flex-1 flex overflow-hidden min-h-0">
+        {/* Markdown Editor Panel — scrollable */}
+        <div className={`flex flex-col overflow-hidden ${showPreview ? "w-1/2 border-r" : "w-full"}`}>
+          <div className="flex-1 overflow-y-auto">
+            <MarkdownEditor value={markdown} onChange={handleContentChange} />
+          </div>
         </div>
+
+        {/* Slide Preview Panel — scrollable */}
         {showPreview && (
-          <div className="w-1/2">
+          <div className="w-1/2 overflow-y-auto">
             <SlidePreview markdown={markdown} themeId={selectedTheme} />
           </div>
         )}
       </div>
 
-      {/* Keyboard Shortcuts */}
-      <div className="bg-muted px-4 py-1.5 text-xs text-muted-foreground flex gap-4 border-t">
+      {/* Keyboard Shortcuts Bar */}
+      <div className="bg-muted px-4 py-1.5 text-xs text-muted-foreground flex gap-4 border-t shrink-0">
         <span><kbd className="px-1.5 py-0.5 bg-background border border-border rounded text-xs">Ctrl+S</kbd> Save</span>
         <span><kbd className="px-1.5 py-0.5 bg-background border border-border rounded text-xs">Ctrl+P</kbd> Preview</span>
         <span><kbd className="px-1.5 py-0.5 bg-background border border-border rounded text-xs">F11</kbd> Fullscreen</span>

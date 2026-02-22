@@ -1,7 +1,7 @@
 {
-  "name": "makebreak-backend",
+  "name": "markpre-backend",
   "version": "1.0.0",
-  "description": "Backend for MakeBreak - Markdown Presentation SaaS",
+  "description": "Backend for MarkPre - Markdown Presentation SaaS",
   "main": "dist/index.js",
   "config": {
     "puppeteer_skip_chromium_download": "true"
