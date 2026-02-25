@@ -87,8 +87,8 @@ app.get('/', (req, res) => {
   });
 });
 
-app.get('/health', (req, res) => {
-  res.json({ status: 'healthy' });
+app.get("/health", (req, res) => {
+  res.json({ status: "ok", timestamp: new Date().toISOString() });
 });
 
 // Global error handler
@@ -107,9 +107,25 @@ connectDB()
       console.log(`🚀 Server running on port ${PORT}`);
       console.log(`🌐 CORS origins: ${allowedOrigins.join(', ')}`);
       console.log(`📦 Environment: ${process.env.NODE_ENV || 'development'}`);
+      startKeepAlive();
     });
   })
   .catch((error) => {
     console.error("❌ DB Error:", error);
     process.exit(1);
   });
+
+  function startKeepAlive() {
+  if (process.env.NODE_ENV !== "production" || !process.env.PROD_URL) return;
+  const url = `${process.env.PROD_URL.replace(/\/+$/, "")}/health`;
+  setInterval(async () => {
+    try {
+      const r = await fetch(url, { signal: AbortSignal.timeout(10000) });
+      if (!r.ok) console.warn("⚠️  Keep-alive ping returned:", r.status);
+      else console.log("🏓 Keep-alive ping OK");
+    } catch (err: any) {
+      console.warn("⚠️  Keep-alive ping failed:", err.message);
+    }
+  }, 14 * 60 * 1000); // 14 minutes
+  console.log(`🏓 Keep-alive enabled → ${url} (every 14 min)`);
+}
