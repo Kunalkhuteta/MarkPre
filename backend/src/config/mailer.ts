@@ -1,46 +1,26 @@
-import nodemailer, { SentMessageInfo } from "nodemailer";
-import hbs from "nodemailer-express-handlebars";
+import { BrevoClient } from "@getbrevo/brevo";
+import fs from "fs";
 import path from "path";
+import Handlebars from "handlebars";
 
-// ✅ THE FIX: Reference src/templates directly
-// Render deploys your full project, so src/ folder exists alongside dist/
 const templatesPath = path.resolve(process.cwd(), "src/templates/emails");
 
 console.log("📧 Templates path:", templatesPath);
 console.log("📦 CWD:", process.cwd());
 
-// Transporter
-const transporter = nodemailer.createTransport({
-  host: "smtp.gmail.com",
-  port: 587,
-  secure: true,
-  auth: {
-    user: process.env.EMAIL_USER,
-    pass: (process.env.EMAIL_PASS || "").replace(/\s/g, ""), // strip spaces
-  },
+const brevo = new BrevoClient({
+  apiKey: process.env.BREVO_API_KEY || "",
 });
 
-transporter.use(
-  "compile",
-  hbs({
-    viewEngine: {
-      extname: ".hbs",
-      partialsDir: templatesPath,
-      layoutsDir: templatesPath,
-      defaultLayout: false,
-    },
-    viewPath: templatesPath,
-    extName: ".hbs",
-  })
-);
+console.log("✅ Brevo mailer initialized");
 
-transporter.verify((error, success) => {
-  if (error) {
-    console.error("❌ Mailer verify failed:", error.message);
-  } else {
-    console.log("✅ Mailer connected successfully");
-  }
-});
+// Compile HBS template to HTML string
+function renderTemplate(template: string, context: Record<string, any>): string {
+  const templateFile = path.join(templatesPath, `${template}.hbs`);
+  const source = fs.readFileSync(templateFile, "utf8");
+  const compiled = Handlebars.compile(source);
+  return compiled(context);
+}
 
 // Send mail function
 async function sendMail(
@@ -48,7 +28,7 @@ async function sendMail(
   subject: string,
   template: string,
   context: Record<string, any> = {}
-): Promise<SentMessageInfo> {
+): Promise<void> {
 
   // 🔥 LOG OTP FOR TESTING
   if (template === "email-verification-otp" && context.otpDigits) {
@@ -60,23 +40,23 @@ async function sendMail(
     console.log("=====================================");
   }
 
-  const mailOptions = {
-    from: process.env.EMAIL_USER,
-    to: emailTo,
-    subject,
-    template,
-    context,
-  } as any;
+  const html = renderTemplate(template, context);
 
   try {
-    const info = await transporter.sendMail(mailOptions);
-    const previewUrl = nodemailer.getTestMessageUrl(info);
-    if (previewUrl) console.log("📬 Preview URL:", previewUrl);
-    console.log("✅ Email sent to:", emailTo);
-    return info;
+    const response = await brevo.transactionalEmails.sendTransacEmail({
+      to: [{ email: emailTo }],
+      sender: {
+        email: process.env.EMAIL_USER || "noreply@markpre.com",
+        name: process.env.EMAIL_FROM_NAME || "MarkPre",
+      },
+      subject,
+      htmlContent: html,
+    });
+
+    console.log("✅ Email sent to:", emailTo, "| Message ID:", response?.messageId);
   } catch (error: any) {
-    console.error("❌ Email failed:", error.message);
-    throw error;
+    console.error("❌ Email failed:", error?.response?.data || error.message);
+    throw new Error(error?.response?.data?.message || error.message);
   }
 }
 
