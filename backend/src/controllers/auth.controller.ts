@@ -38,7 +38,7 @@ const registerUser = asyncHandler(async (req: Request, res: Response) => {
     name: user.name,
     otpDigits: otp.split(""),
   })
-    .then((info) => console.log("✅ Register email sent:", info.messageId))
+    .then(() => console.log("✅ Register email sent"))
     .catch((err) => console.error("❌ Register email failed:", err.message));
 
   res.status(201).json(
@@ -82,7 +82,7 @@ const loginUser = asyncHandler(async (req: Request, res: Response) => {
       name: loginData.user.name,
       otpDigits: otp.split(""),
     })
-      .then((info) => console.log("✅ Login OTP email sent:", info.messageId))
+      .then(() => console.log("✅ Login OTP email sent"))
       .catch((err) => console.error("❌ Login OTP email failed:", err.message));
 
     return res.status(200).json(
